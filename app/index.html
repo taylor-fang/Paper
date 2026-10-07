@@ -1,0 +1,1024 @@
+<!doctype html>
+<html lang="en" data-paper="full" data-font="times">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper</title>
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+  :root {
+    /* a warm, slightly dimmed paper: less glare than white, and ink that isn't pure black */
+    --paper: #f3efe6;
+    --desk: #ece6db;
+    --bar: #ebe6dc;
+    --ink: #000;
+    --soft: #8d877c;
+    --faint: #cbc5b9;
+    --size: 20px;
+    --lh: 1.4;
+    --font: "Times New Roman", Times, serif;
+    --ui: InterVariable, Inter, -apple-system, system-ui, sans-serif;
+    --surface: rgba(40, 30, 10, .045);
+    --ease: cubic-bezier(.2, .8, .2, 1);
+  }
+  [data-font="inter"] { --font: InterVariable, Inter, system-ui, sans-serif; }
+
+  * { box-sizing: border-box; }
+  /* no scroll bars anywhere: the page still scrolls, it just doesn't show a bar */
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(196, 170, 90, .28); }
+
+  /* ---------- paper: the whole screen ---------- */
+  [data-paper="full"] #page { min-height: 100vh; padding: 14vh 8vw 50vh; }
+  [data-paper="full"] #lines { max-width: 34em; margin-left: auto; margin-right: auto; }
+
+  /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
+  [data-paper="sheet"] body { background: var(--desk); }
+  [data-paper="sheet"] #page {
+    position: relative;
+    width: min(8.5in, 100vw - 32px);
+    margin: 8vh auto 40vh;
+    padding: 1in;
+  }
+  #sheets { position: absolute; inset: 0; pointer-events: none; }
+  .sheet {
+    position: absolute; left: 0; right: 0;
+    background: var(--paper);
+    box-shadow: 0 1px 2px rgba(40, 30, 10, .06), 0 10px 40px rgba(40, 30, 10, .08);
+  }
+  /* invisible floats that push the text past each page's bottom margin, the gap, and the next top margin */
+  .shim { float: left; clear: left; width: 1px; margin-right: -1px; }
+  .shim.band { width: 100%; margin-right: 0; }
+  [data-paper="sheet"] #editor { min-height: 0; }
+  @media (max-width: 700px) {
+    [data-paper="sheet"] #page { padding: 32px 24px; margin-top: 16px; }
+    [data-paper="full"] #page { padding: 48px 16px 50vh; }
+  }
+
+  /* ---------- the writing ---------- */
+  #lines { position: relative; z-index: 1; font-size: var(--size); line-height: var(--lh); }
+  [data-font="inter"] #lines { font-size: calc(var(--size) * .86); }
+  #editor {
+    position: relative;
+    outline: none;
+    font-size: var(--size);
+    line-height: var(--lh);
+    caret-color: transparent; /* drawn by #caret instead, so it can breathe */
+    min-height: 50vh;
+    overflow-wrap: break-word;
+  }
+  [data-font="inter"] #editor { font-size: calc(var(--size) * .86); letter-spacing: -.005em; }
+  #editor p { margin: 0 0 .5em; }
+  #editor ul, #editor ol { margin: 0 0 .5em; padding-left: 2.1em; }
+  #editor li { padding-left: .3em; }
+  #editor ul ul, #editor ol ol, #editor ul ol, #editor ol ul { margin: 0; }
+  #editor strike, #editor s { text-decoration-thickness: .07em; }
+  #editor a { color: inherit; text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+  #editor a:hover { text-decoration-color: var(--soft); }
+
+  /* ⌘K: a quiet line to paste a link into */
+  #linkbox {
+    position: absolute; z-index: 4; display: none;
+    width: 300px; max-width: calc(100vw - 32px);
+    padding: 6px 10px; border: 1px solid var(--faint); border-radius: 3px; outline: none;
+    background: var(--paper); color: var(--ink);
+    font: italic 14px/1.4 var(--font);
+    box-shadow: 0 4px 16px rgba(40, 30, 10, .08);
+  }
+  #linkbox.show { display: block; }
+  #linkbox::placeholder { color: var(--soft); }
+
+  /* ---------- side bar ---------- */
+  #bar {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 320px; max-width: 88vw;
+    display: flex; flex-direction: column;
+    padding: 28px 24px 20px;
+    overflow-y: auto;
+    background: var(--bar);
+    border-left: 1px solid rgba(40, 30, 10, .07);
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.2, .7, .2, 1);
+    font-family: var(--font);
+    z-index: 3;
+  }
+  .open #bar { transform: none; }
+  /* labels: plain words in the same font and size as everything else */
+  #bar h2, .dial .k { margin: 0; font: 400 14px/1 var(--font); color: var(--soft); }
+  #bar h2 { margin-bottom: 12px; }
+  #bar section { display: flex; flex-direction: column; min-height: 120px; }
+  #notesWrap { flex: 1 1 50%; }
+  #todoWrap { flex: 1 1 40%; margin-top: 24px; }
+  #notes {
+    flex: 1; resize: none; border: 0; outline: none; padding: 0;
+    background: transparent; color: var(--ink);
+    font: 15px/1.5 var(--font);
+  }
+
+  /* to-dos */
+  #todos { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+  #todos li { display: flex; align-items: flex-start; cursor: text; }
+  #todos .text {
+    flex: 1; min-width: 0;
+    outline: none; padding: 3px 0 3px 9px;
+    font: 15px/1.4 var(--font); color: var(--ink);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  #todos .done .text { color: var(--soft); text-decoration: line-through; text-decoration-color: var(--soft); }
+
+  /* a ballot box, and a tick that overshoots it like a pen would; it appears at once, like a stamp */
+  .check { flex: none; width: 18px; height: 18px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--ink); }
+  /* the eye centres on lowercase letters, which sit a little below the middle of the line */
+  /* sits on the first line, centred on the lowercase letters, however many lines the item runs to */
+  .check { margin-top: 5.5px; }
+  .check svg { display: block; width: 18px; height: 18px; overflow: visible; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+  .check .box { stroke: var(--soft); stroke-width: 1.1; }
+  .check .tick { display: none; stroke-width: 1.5; }
+  .done .check .box { stroke: var(--ink); }
+  .done .check .tick { display: inline; }
+
+  /* options: dials in the manner of DialKit, filled bars with the label inside */
+  #bar footer {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 24px;
+    color: var(--soft);
+  }
+  .dial {
+    position: relative; height: 30px; border-radius: 7px;
+    background: var(--surface);
+    display: flex; align-items: center;
+    user-select: none; -webkit-user-select: none;
+    outline: none;
+  }
+  .dial .k { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 1; pointer-events: none; }
+  .dial .val {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 1; pointer-events: none;
+    font: 400 13px/1 var(--font); font-variant-numeric: tabular-nums; color: var(--soft);
+  }
+  .slider { cursor: ew-resize; overflow: hidden; }
+  .slider .fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(40, 30, 10, .055); transition: width .35s var(--ease); }
+  .slider .handle {
+    position: absolute; top: 50%; width: 2px; height: 14px; margin: -7px 0 0 -1px; border-radius: 2px;
+    background: var(--ink); opacity: .3; transition: left .35s var(--ease), opacity .2s;
+  }
+  .slider.dragging .fill, .slider.dragging .handle { transition: none; }
+  .slider:hover .handle, .slider:focus-visible .handle, .slider.dragging .handle { opacity: .6; }
+  .seg .opts { position: relative; display: flex; margin-left: auto; height: 100%; padding: 3px; }
+  .seg .pill {
+    position: absolute; top: 3px; bottom: 3px; border-radius: 5px;
+    background: rgba(40, 30, 10, .055);
+    transition: left .35s var(--ease), width .35s var(--ease);
+  }
+  .seg button {
+    position: relative; z-index: 1; border: 0; background: none; padding: 0 10px; cursor: pointer;
+    font: 400 14px/1 var(--font); color: var(--soft); transition: color .2s;
+  }
+  .seg button.on, .seg button:hover { color: #4a453d; }
+  /* each font's name is shown in that font */
+  .seg button[data-value="times"] { font-family: "Times New Roman", Times, serif; }
+  .seg button[data-value="inter"] { font-family: InterVariable, Inter, system-ui, sans-serif; font-size: 12.5px; }
+  .opt { display: flex; justify-content: flex-end; line-height: 1.45; font-size: 14px; }
+  .opt.count { margin-top: 8px; font-style: italic; }
+  #count { user-select: none; }
+  #export span, #export a { color: inherit; text-decoration: none; cursor: pointer; opacity: .7; margin-left: 11px; transition: opacity .2s; }
+  #export span:hover, #export a:hover { opacity: 1; }
+
+  /* the dog-ear: move toward the right edge and the top corner of the page folds down; click to open */
+  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 28px; cursor: pointer; z-index: 2; }
+  #edge::after {
+    content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
+    /* the top-right half is what's under the page; the other half is the fold's back */
+    background: linear-gradient(225deg, var(--bar) 50%, #e3dccf 50%);
+    box-shadow: -1px 1px 3px rgba(40, 30, 10, .1);
+    transition: width .35s var(--ease), height .35s var(--ease);
+  }
+  #edge:hover::after { width: 30px; height: 30px; }
+  .open #edge { display: none; }
+
+  #caret {
+    position: absolute; z-index: 2; width: 4.5px; border-radius: 1.5px;
+    background: rgb(60, 45, 20); pointer-events: none;
+    animation: breathe 2.2s ease-in-out infinite;
+  }
+  #caret[hidden] { display: none; }
+  @keyframes breathe { 0%, 100% { opacity: .16; } 50% { opacity: .04; } }
+
+  #status {
+    position: fixed; left: 20px; bottom: 16px;
+    font: italic 13px var(--font); color: var(--soft);
+    opacity: 0; transition: opacity .4s; pointer-events: none;
+  }
+  #status.show { opacity: 1; transition: opacity .1s; }
+
+  @media print {
+    #bar, #edge, #status { display: none; }
+    body { background: none !important; }
+    #page { box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: auto !important; min-height: 0 !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div id="page">
+    <div id="sheets"></div>
+    <div id="lines"><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true"></div></div>
+  </div>
+
+  <div id="edge"></div>
+  <aside id="bar">
+    <section id="notesWrap">
+      <h2>Notes</h2>
+      <textarea id="notes"></textarea>
+    </section>
+    <section id="todoWrap">
+      <h2>To do</h2>
+      <ul id="todos"></ul>
+    </section>
+    <footer id="options"></footer>
+  </aside>
+  <div id="status"></div>
+  <div id="caret" hidden></div>
+  <input id="linkbox" type="text" placeholder="paste a link, then enter" spellcheck="false" autocomplete="off">
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement;
+  const ed = $('editor'), notes = $('notes'), list = $('todos');
+
+  /* ================= storage =================
+     In Paper.app: the app saves files to ~/Paper.
+     Served by server.js on this Mac: the server saves files to ~/Paper.
+     On the website, or opened as a plain file: this browser's own storage. */
+  const native = window.webkit?.messageHandlers?.paper;
+  const onServer = !native && ['localhost', '127.0.0.1'].includes(location.hostname);
+  const onWeb = !native && !onServer;
+  const ask = (msg) => native.postMessage(msg).catch(() => null);
+  const local = {
+    get: (k) => { try { return localStorage.getItem('paper.' + k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem('paper.' + k, v); } catch {} },
+  };
+  let leaving = false;
+
+  const files = {
+    async get(name) {
+      if (native) return (await ask({ op: 'get', name })) ?? '';
+      if (onServer) {
+        try { const r = await fetch('/api/files/' + name); if (r.ok) return await r.text(); } catch {}
+      }
+      return local.get('file.' + name) ?? '';
+    },
+    put(name, text) {
+      local.set('file.' + name, text);
+      if (native) return void ask({ op: 'put', name, text });
+      if (!onServer) return;
+      fetch('/api/files/' + name, {
+        method: 'PUT',
+        headers: { 'x-paper': '1', 'content-type': 'text/plain;charset=utf-8' },
+        body: text,
+        keepalive: leaving && text.length < 60000,
+      }).catch(() => {});
+    },
+    markdown(name, text) {
+      if (native) return void ask({ op: 'markdown', name, text });
+      if (!onServer) return;
+      fetch('/api/markdown/' + name, {
+        method: 'PUT',
+        headers: { 'x-paper': '1', 'content-type': 'text/plain;charset=utf-8' },
+        body: text,
+        keepalive: leaving && text.length < 60000,
+      }).catch(() => {});
+    },
+  };
+
+  // a debounced save that can also be flushed right away
+  const savers = [];
+  function saver(fn, ms) {
+    let t = null;
+    const run = () => { clearTimeout(t); t = null; fn(); };
+    const soon = () => { clearTimeout(t); t = setTimeout(run, ms); };
+    soon.flush = () => { if (t) run(); };
+    savers.push(soon);
+    return soon;
+  }
+  const flushAll = () => savers.forEach((s) => s.flush());
+
+  let statusTimer;
+  function status(msg) {
+    const el = $('status');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => el.classList.remove('show'), 900);
+  }
+
+  /* ================= settings ================= */
+  const DEFAULTS = { font: 'times', size: 20, spacing: 1.4, paper: 'full' };
+  const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
+
+  const OPTIONS = [
+    { key: 'font', label: 'font', choices: [['times', 'Times'], ['inter', 'Inter']] },
+    { key: 'size', label: 'size', range: [14, 30, 1], show: (v) => String(v) },
+    { key: 'spacing', label: 'spacing', range: [1.1, 2, .05], show: (v) => v.toFixed(2) },
+    { key: 'paper', label: 'paper', choices: [['full', 'open'], ['sheet', 'leaf']] },
+  ];
+  const EXPORTS = [['md', 'markdown'], ['docx', 'word']];
+
+  function buildOptions() {
+    const box = $('options');
+    for (const o of OPTIONS) box.append(o.range ? slider(o) : segmented(o));
+
+    // the word count, then export (or, on the website, the app download) beneath it
+    const count = document.createElement('div');
+    count.className = 'opt count';
+    count.innerHTML = '<span id="count"></span>';
+    const exp = document.createElement('div');
+    exp.className = 'opt export';
+    exp.innerHTML = '<span id="export"></span>';
+    box.append(count, exp);
+    if (onWeb) $('export').innerHTML = '<a href="Paper.zip" download>download</a>';
+    else showExport(false);
+  }
+
+  // a filled bar: drag anywhere, arrow keys nudge, double-click resets
+  function slider(o) {
+    const [min, max, step] = o.range;
+    const el = document.createElement('div');
+    el.className = 'dial slider';
+    el.tabIndex = 0;
+    el.dataset.key = o.key;
+    el.innerHTML = `<span class="fill"></span><span class="handle"></span><span class="k">${o.label}</span><span class="val"></span>`;
+    const pick = (x) => {
+      const r = el.getBoundingClientRect();
+      const t = Math.min(1, Math.max(0, (x - r.left) / r.width));
+      set(o.key, +(Math.round((min + t * (max - min)) / step) * step).toFixed(2));
+    };
+    el.onpointerdown = (e) => { el.setPointerCapture(e.pointerId); el.classList.add('dragging'); pick(e.clientX); };
+    el.onpointermove = (e) => { if (el.hasPointerCapture(e.pointerId)) pick(e.clientX); };
+    el.onpointerup = el.onpointercancel = () => el.classList.remove('dragging');
+    el.ondblclick = () => set(o.key, DEFAULTS[o.key]);
+    el.onkeydown = (e) => {
+      const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      set(o.key, +Math.min(max, Math.max(min, s[o.key] + d * step)).toFixed(2));
+    };
+    el.paint = () => {
+      const t = (s[o.key] - min) / (max - min);
+      el.querySelector('.fill').style.width = t * 100 + '%';
+      el.querySelector('.handle').style.left = `calc(${t * 100}% ${t > .5 ? '-' : '+'} ${Math.abs(.5 - t) * 2 * 6}px)`;
+      el.querySelector('.val').textContent = o.show(s[o.key]);
+    };
+    return el;
+  }
+
+  // two choices on a bar, with a pill that slides to the chosen one
+  function segmented(o) {
+    const el = document.createElement('div');
+    el.className = 'dial seg';
+    el.dataset.key = o.key;
+    el.innerHTML = `<span class="k">${o.label}</span><span class="opts"><span class="pill"></span></span>`;
+    const opts = el.querySelector('.opts');
+    for (const [value, text] of o.choices) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      b.dataset.value = String(value);
+      b.onclick = () => set(o.key, value);
+      opts.append(b);
+    }
+    el.paint = () => {
+      const on = [...opts.querySelectorAll('button')].find((b) => b.dataset.value === String(s[o.key]));
+      opts.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === on));
+      if (!on) return;
+      const pill = opts.querySelector('.pill');
+      pill.style.left = on.offsetLeft + 'px';
+      pill.style.width = on.offsetWidth + 'px';
+    };
+    return el;
+  }
+
+  let exportOpen = false;
+  function showExport(open) {
+    exportOpen = open;
+    const v = $('export');
+    v.innerHTML = '';
+    const word = (text, fn) => {
+      const el = document.createElement('span');
+      el.textContent = text;
+      el.onclick = (e) => { e.stopPropagation(); fn(); };
+      v.append(el);
+    };
+    if (!open) word('export', () => showExport(true));
+    else for (const [kind, text] of EXPORTS) word(text, () => { showExport(false); exportAs(kind); });
+  }
+  document.addEventListener('click', () => { if (exportOpen) showExport(false); });
+
+  /* ---------- leaf: lay the text out across letter-size pages ---------- */
+  const GAP = 24; // desk showing between pages
+  let pages = 0, geometry = '';
+
+  function layoutPages(n, pageH, content, band) {
+    const shims = $('shims'), sheets = $('sheets');
+    shims.innerHTML = '';
+    sheets.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const sheet = document.createElement('div');
+      sheet.className = 'sheet';
+      sheet.style.top = i * (pageH + GAP) + 'px';
+      sheet.style.height = pageH + 'px';
+      sheets.append(sheet);
+      if (i === n - 1) break;
+      const room = document.createElement('div');
+      room.className = 'shim';
+      room.style.height = content + 'px';
+      const gap = document.createElement('div');
+      gap.className = 'shim band';
+      gap.style.height = band + 'px';
+      shims.append(room, gap);
+    }
+    $('page').style.minHeight = n * pageH + (n - 1) * GAP + 'px';
+  }
+
+  function paginate() {
+    if (s.paper !== 'sheet') {
+      if (pages) { $('shims').innerHTML = ''; $('sheets').innerHTML = ''; $('page').style.minHeight = ''; pages = 0; geometry = ''; }
+      return;
+    }
+    const page = $('page');
+    const cs = getComputedStyle(page);
+    const pageH = page.offsetWidth * 11 / 8.5; // letter proportions at whatever width the leaf has
+    const top = parseFloat(cs.paddingTop), bottom = parseFloat(cs.paddingBottom);
+    const content = pageH - top - bottom;
+    const band = bottom + GAP + top;
+    const key = [pageH, top, bottom, s.font, s.size, s.spacing].join();
+    if (key !== geometry) { geometry = key; pages = 0; }
+    let n = pages || 1;
+    for (let i = 0; i < 6; i++) {
+      if (n !== pages) { layoutPages(n, pageH, content, band); pages = n; }
+      const need = Math.max(1, Math.ceil((ed.offsetHeight + band) / (content + band) - 1e-6));
+      if (need === n) break;
+      n = need;
+    }
+  }
+  window.addEventListener('resize', paginate);
+  document.fonts?.ready.then(() => paginate());
+
+  function applySettings() {
+    for (const k of ['font', 'paper']) root.dataset[k] = s[k];
+    root.style.setProperty('--size', s.size + 'px');
+    root.style.setProperty('--lh', s.spacing);
+    document.querySelectorAll('#options .dial').forEach((el) => el.paint());
+  }
+
+  function set(key, value) {
+    s[key] = value;
+    local.set('settings', JSON.stringify(s));
+    if (native) ask({ op: 'settings', text: JSON.stringify(s) });
+    applySettings();
+    paginate();
+  }
+
+  buildOptions();
+  applySettings();
+  // the pills need the buttons' real widths, which depend on fonts loading and the bar being laid out
+  document.fonts?.ready.then(applySettings);
+  $('bar').addEventListener('transitionend', applySettings);
+
+  /* ================= the page ================= */
+  document.execCommand('defaultParagraphSeparator', false, 'p');
+  let docName = null;
+
+  const saveDoc = saver(() => {
+    if (docName) { files.put(docName, ed.innerHTML); files.markdown(docName, toMarkdown(ed)); }
+    retitle();
+  }, 400);
+
+  /* ---------- markdown ---------- */
+  function toMarkdown(rootEl) {
+    const esc = (t) => t.replace(/\u00a0/g, ' ').replace(/([\\`*_\[\]])/g, '\\$1');
+    // markers have to hug the words: "** bold **" isn't bold in markdown
+    const wrap = (open, text, close = open) => {
+      const m = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      return m[2] ? m[1] + open + m[2] + close + m[3] : text;
+    };
+    function inline(node) {
+      let out = '';
+      for (const n of node.childNodes) {
+        if (n.nodeType === 3) { out += esc(n.data); continue; }
+        if (n.nodeType !== 1) continue;
+        switch (n.nodeName) {
+          case 'B': case 'STRONG': out += wrap('**', inline(n)); break;
+          case 'I': case 'EM': out += wrap('*', inline(n)); break;
+          case 'S': case 'STRIKE': case 'DEL': out += wrap('~~', inline(n)); break;
+          case 'U': out += wrap('<u>', inline(n), '</u>'); break;
+          case 'A': out += `[${inline(n)}](${n.getAttribute('href')})`; break;
+          case 'BR': out += '\n'; break;
+          case 'UL': case 'OL': break; // handled as nested lists
+          default: out += inline(n);
+        }
+      }
+      return out;
+    }
+    function list(el, indent, lines) {
+      let i = 1;
+      for (const c of el.children) {
+        if (c.nodeName === 'LI') {
+          const marker = el.nodeName === 'OL' ? `${i++}. ` : '- ';
+          lines.push(indent + marker + inline(c).trim().replace(/\n+/g, ' '));
+          for (const sub of c.children) if (sub.nodeName === 'UL' || sub.nodeName === 'OL') list(sub, indent + ' '.repeat(marker.length), lines);
+        } else if (c.nodeName === 'UL' || c.nodeName === 'OL') {
+          list(c, indent + '  ', lines);
+        }
+      }
+      return lines;
+    }
+    const blocks = [];
+    for (const b of rootEl.children) {
+      if (b.nodeName === 'UL' || b.nodeName === 'OL') { blocks.push(list(b, '', []).join('\n')); continue; }
+      const text = inline(b).trim().replace(/\n/g, '  \n');
+      if (text) blocks.push(text.replace(/^(#|>|[-+] )/, '\\$1').replace(/^(\d+)\. /, '$1\\. '));
+    }
+    return blocks.join('\n\n') + '\n';
+  }
+
+  function download(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  async function exportAs(kind) {
+    saveDoc.flush();
+    const name = (document.title || 'Paper').replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
+    // in the app: a normal Save dialog, and the app makes the file
+    if (native) return void ask({ op: 'export', kind, name, font: s.font, text: kind === 'md' ? toMarkdown(ed) : ed.innerHTML });
+    if (kind === 'md') return download(new Blob([toMarkdown(ed)], { type: 'text/markdown;charset=utf-8' }), name + '.md');
+    // word: the server turns the page into a .docx with the Mac's own converter
+    if (!onServer) return;
+    try {
+      const r = await fetch('/api/export/docx?font=' + s.font, {
+        method: 'POST',
+        headers: { 'x-paper': '1', 'content-type': 'text/plain;charset=utf-8' },
+        body: ed.innerHTML,
+      });
+      if (!r.ok) throw new Error(await r.text());
+      download(await r.blob(), name + '.docx');
+    } catch {}
+  }
+
+  function recount() {
+    const n = (ed.innerText.match(/\S+/g) || []).length;
+    $('count').textContent = n === 1 ? '1 word' : n + ' words';
+  }
+
+  function retitle() {
+    const first = (ed.querySelector('p, li')?.textContent || '').trim().slice(0, 48);
+    document.title = first || 'Paper';
+  }
+
+  // on the website, a first visit opens on a short note; it's ordinary text, delete it and it's gone
+  const STARTER = '<p>A paper for writing.</p><p>Mouse over the right of the screen for visuals.</p>';
+
+  async function openDoc(name) {
+    saveDoc.flush();
+    docName = name;
+    const firstVisit = onWeb && local.get('file.' + name) == null;
+    ed.innerHTML = (await files.get(name)).trim() || (firstVisit ? STARTER : '<p><br></p>');
+    retitle();
+    recount();
+    paginate();
+    caretToEnd();
+  }
+
+  function placeCaret(fn) {
+    const r = document.createRange();
+    fn(r);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  }
+  function caretToEnd() {
+    ed.focus({ preventScroll: true });
+    placeCaret((r) => { r.selectNodeContents(ed.lastElementChild || ed); r.collapse(false); });
+  }
+  const caretAtStart = (el) => placeCaret((r) => { r.setStart(el, 0); r.collapse(true); });
+
+  ed.addEventListener('input', (e) => {
+    if (!ed.textContent && !ed.querySelector('li')) { ed.innerHTML = '<p><br></p>'; caretToEnd(); }
+    recount();
+    paginate();
+    drawCaret();
+    saveDoc();
+  });
+
+  // paste as plain text, so the page stays one voice; a link pasted over selected words links them
+  ed.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    const html = e.clipboardData.getData('text/html');
+    if (!getSelection().isCollapsed && /^(https?:\/\/|mailto:)\S+$/.test(text.trim())) document.execCommand('createLink', false, text.trim());
+    else if (html) {
+      document.execCommand('insertHTML', false, cleanPaste(html));
+      ed.querySelectorAll('[style]').forEach((el) => el.removeAttribute('style'));
+      ed.querySelectorAll('span:not([class])').forEach((el) => el.replaceWith(...el.childNodes));
+    } else document.execCommand('insertText', false, text);
+  });
+
+  // reduce pasted HTML to what the page knows: paragraphs, lists, links, and b / i / u / s.
+  // fonts, sizes and colours are dropped so it takes on the page's own look
+  function cleanPaste(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const body = doc.body;
+    const BLOCK = /^(P|DIV|H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE|HEADER|FOOTER|MAIN|ASIDE|TR|DT|DD|FIGCAPTION)$/;
+    const DROP = /^(SCRIPT|STYLE|META|LINK|TITLE|HEAD|IMG|PICTURE|SVG|IFRAME|OBJECT|EMBED|VIDEO|AUDIO|CANVAS|BUTTON|INPUT|SELECT|TEXTAREA|NOSCRIPT|TEMPLATE)$/;
+    const unwrap = (el) => el.replaceWith(...el.childNodes);
+    const wrapIn = (el, tag) => { const w = doc.createElement(tag); el.before(w); w.append(el); return w; };
+
+    // 1. turn every element into one the page knows, or unwrap it
+    for (const el of [...body.querySelectorAll('*')]) {
+      if (!el.isConnected) continue;
+      const tag = el.nodeName;
+      if (DROP.test(tag)) { el.remove(); continue; }
+      const style = el.getAttribute('style') || '';
+      const weight = (style.match(/font-weight\s*:\s*(\w+)/i) || [])[1];
+      const marks = [];
+      const boldTag = tag === 'B' || tag === 'STRONG';
+      if (boldTag ? !(weight && /^(normal|[1-5]00)$/i.test(weight)) : weight && /^(bold|bolder|[6-9]00)$/i.test(weight)) marks.push('b');
+      if (tag === 'I' || tag === 'EM' || /font-style\s*:\s*italic/i.test(style)) marks.push('i');
+      if ((tag === 'U' || /text-decoration[^;]*underline/i.test(style)) && !el.closest('a')) marks.push('u'); // links are already underlined
+      if (/^(S|STRIKE|DEL)$/.test(tag) || /text-decoration[^;]*line-through/i.test(style)) marks.push('s');
+
+      let keep = null;
+      if (BLOCK.test(tag)) keep = 'p';
+      else if (tag === 'UL' || tag === 'OL' || tag === 'LI' || tag === 'BR') keep = tag.toLowerCase();
+      else if (tag === 'A' && /^(https?:|mailto:)/i.test(el.getAttribute('href') || '')) keep = 'a';
+
+      const href = el.getAttribute('href');
+      let node = el;
+      if (keep) {
+        const fresh = doc.createElement(keep);
+        if (keep === 'a') fresh.setAttribute('href', href);
+        fresh.append(...el.childNodes);
+        el.replaceWith(fresh);
+        node = fresh;
+      }
+      // inline marks go inside blocks, around the contents
+      if (marks.length) {
+        const inner = doc.createElement(marks[0]);
+        let deepest = inner;
+        for (const m of marks.slice(1)) { const x = doc.createElement(m); deepest.append(x); deepest = x; }
+        if (keep && keep !== 'a') { deepest.append(...node.childNodes); node.append(inner); }
+        else { node.before(inner); deepest.append(node); }
+      }
+      if (!keep) unwrap(node);
+    }
+
+    // 2. fix nesting: no paragraphs inside paragraphs or list items, no blocks inside bold/italic
+    for (const el of [...body.querySelectorAll('b, i, u, s, a')]) {
+      if (el.querySelector('p, ul, ol, li')) unwrap(el);
+    }
+    for (const p of [...body.querySelectorAll('p')]) {
+      if (p.parentElement && p.parentElement.closest('p, li')) {
+        if (p.previousSibling) p.before(doc.createElement('br'));
+        unwrap(p);
+      }
+    }
+    for (const list of [...body.querySelectorAll('ul, ol')]) {
+      for (const n of [...list.childNodes]) {
+        if (n.nodeName === 'LI' || n.nodeName === 'UL' || n.nodeName === 'OL') continue;
+        if (n.nodeType === 3 && !n.data.trim()) { n.remove(); continue; }
+        wrapIn(n, 'li');
+      }
+    }
+    // loose text and inline bits at the top level become paragraphs
+    let run = null;
+    for (const n of [...body.childNodes]) {
+      const block = n.nodeType === 1 && /^(P|UL|OL)$/.test(n.nodeName);
+      if (block || (n.nodeType === 3 && !n.data.trim() && !run)) { run = null; if (!block) n.remove(); continue; }
+      if (n.nodeName === 'BR' && run) { run = null; n.remove(); continue; }
+      if (!run) { run = doc.createElement('p'); n.before(run); }
+      run.append(n);
+    }
+    // collapse source-code whitespace, and drop empty marks
+    const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) t.data = t.data.replace(/[ \t\r\n]+/g, ' ');
+    for (const el of [...body.querySelectorAll('b, i, u, s')]) if (!el.textContent) el.remove();
+    return body.innerHTML;
+  }
+
+  /* ---------- the cursor ---------- */
+  const caretMark = $('caret');
+  let caretFrame = 0;
+  function drawCaret() {
+    cancelAnimationFrame(caretFrame);
+    caretFrame = requestAnimationFrame(() => {
+      const sel = getSelection();
+      if (document.activeElement !== ed || !document.hasFocus() || !sel.rangeCount || !sel.isCollapsed || !ed.contains(sel.anchorNode)) {
+        caretMark.hidden = true;
+        return;
+      }
+      const r = sel.getRangeAt(0);
+      const n = r.startContainer;
+      const host = n.nodeType === 1 ? (n.childNodes[r.startOffset]?.nodeType === 1 ? n.childNodes[r.startOffset] : n) : n.parentElement;
+      const cs = getComputedStyle(host);
+      const fs = parseFloat(cs.fontSize);
+      const h = fs * 1.15; // always one line of type tall, whatever the browser measures
+      // where a line wraps the browser can report both lines; the cursor belongs on the last
+      const rects = r.getClientRects();
+      const rect = rects[rects.length - 1];
+      let left, bottom;
+      if (rect && rect.height) {
+        left = rect.left;
+        bottom = rect.bottom;
+      } else {
+        // an empty line has no text to measure, so centre on the line itself
+        const box = (host.closest('p, li, div') || host).getBoundingClientRect();
+        const lh = parseFloat(cs.lineHeight) || fs * 1.4;
+        left = box.left;
+        bottom = box.top + (lh + h) / 2;
+      }
+      caretMark.style.left = left + scrollX - 1 + 'px';
+      caretMark.style.top = bottom - h + scrollY + 'px';
+      caretMark.style.height = h + 'px';
+      caretMark.hidden = false;
+      // solid again after each move, then back to breathing
+      caretMark.style.animation = 'none';
+      void caretMark.offsetWidth;
+      caretMark.style.animation = '';
+    });
+  }
+  document.addEventListener('selectionchange', drawCaret);
+  ed.addEventListener('focus', drawCaret);
+  ed.addEventListener('blur', drawCaret);
+  window.addEventListener('focus', drawCaret);
+  window.addEventListener('blur', drawCaret);
+  window.addEventListener('resize', drawCaret);
+
+  /* ---------- links: ⌘K ---------- */
+  const linkBox = $('linkbox');
+  let linkRange = null;
+
+  function toHref(raw) {
+    const url = raw.trim();
+    if (/^(https?:|mailto:)/i.test(url)) return url;
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(url)) return 'mailto:' + url;
+    return 'https://' + url.replace(/^\/+/, '');
+  }
+  function linkAt(range) {
+    const n = range.startContainer;
+    const a = (n.nodeType === 1 ? n : n.parentElement)?.closest('a');
+    return a && ed.contains(a) ? a : null;
+  }
+
+  function openLinkBox() {
+    const sel = getSelection();
+    if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return;
+    let r = sel.getRangeAt(0);
+    const a = linkAt(r);
+    if (a) { r = document.createRange(); r.selectNodeContents(a); sel.removeAllRanges(); sel.addRange(r); }
+    linkRange = r.cloneRange();
+    let rect = r.getBoundingClientRect();
+    if (!rect.height) { const n = r.startContainer; rect = (n.nodeType === 1 ? n : n.parentElement).getBoundingClientRect(); }
+    linkBox.value = a ? a.getAttribute('href') : '';
+    linkBox.style.left = Math.max(16, Math.min(rect.left, innerWidth - 316)) + scrollX + 'px';
+    linkBox.style.top = rect.bottom + 8 + scrollY + 'px';
+    linkBox.classList.add('show');
+    linkBox.focus();
+    linkBox.select();
+  }
+
+  function closeLinkBox(apply) {
+    if (!linkRange) return;
+    const r = linkRange;
+    linkRange = null;
+    linkBox.classList.remove('show');
+    ed.focus({ preventScroll: true });
+    placeCaret((x) => { x.setStart(r.startContainer, r.startOffset); x.setEnd(r.endContainer, r.endOffset); });
+    if (!apply) return;
+    const raw = linkBox.value.trim();
+    if (!raw) { if (linkAt(r)) document.execCommand('unlink'); }
+    else if (r.collapsed) {
+      const a = document.createElement('a');
+      a.href = toHref(raw);
+      a.textContent = raw;
+      document.execCommand('insertHTML', false, a.outerHTML + '&#8203;');
+    } else document.execCommand('createLink', false, toHref(raw));
+    getSelection().collapseToEnd();
+    saveDoc();
+  }
+  linkBox.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); closeLinkBox(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeLinkBox(false); }
+  });
+  linkBox.addEventListener('blur', () => { if (linkRange) { linkRange = null; linkBox.classList.remove('show'); } });
+
+  // ⌘-click opens a link; a plain click just puts the caret there, like any other word
+  ed.addEventListener('click', (e) => {
+    const a = e.target.closest('a');
+    if (a && (e.metaKey || e.ctrlKey)) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); }
+  });
+
+  // which block the caret is in, and the text before it in that block
+  function caretContext() {
+    const sel = getSelection();
+    if (!sel.rangeCount || !sel.isCollapsed) return null;
+    const r = sel.getRangeAt(0);
+    let block = r.startContainer;
+    while (block !== ed && !(block.nodeType === 1 && /^(P|DIV|LI|BLOCKQUOTE|H[1-6])$/.test(block.nodeName))) {
+      block = block.parentNode;
+      if (!block) return null;
+    }
+    const pre = document.createRange();
+    pre.selectNodeContents(block);
+    pre.setEnd(r.startContainer, r.startOffset);
+    return { block, before: pre.toString() };
+  }
+
+  // a paragraph becomes a list item, joining the list right above it if there is one
+  function toList(block, tag) {
+    const marker = getSelection().getRangeAt(0);
+    marker.setStart(block, 0);
+    marker.deleteContents();
+    const li = document.createElement('li');
+    li.append(...block.childNodes);
+    if (!li.textContent) li.innerHTML = '<br>';
+    const prev = block.previousElementSibling;
+    if (prev && prev.nodeName === tag) { prev.append(li); block.remove(); }
+    else { const listEl = document.createElement(tag); listEl.append(li); block.replaceWith(listEl); }
+    caretAtStart(li);
+  }
+
+  // a list item becomes a paragraph again, splitting the list around it
+  function fromList(li) {
+    const listEl = li.parentNode;
+    const p = document.createElement('p');
+    p.append(...li.childNodes);
+    if (!p.textContent) p.innerHTML = '<br>';
+    const rest = [...listEl.children].slice([...listEl.children].indexOf(li) + 1);
+    const tail = rest.length ? document.createElement(listEl.nodeName) : null;
+    if (tail) tail.append(...rest);
+    listEl.after(p);
+    if (tail) p.after(tail);
+    li.remove();
+    if (!listEl.children.length) listEl.remove();
+    caretAtStart(p);
+  }
+
+  ed.addEventListener('keydown', (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+
+    if (mod && !e.shiftKey && !e.altKey) {
+      const cmd = { b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()];
+      if (cmd) { e.preventDefault(); document.execCommand(cmd); return; }
+      if (e.key.toLowerCase() === 'k') { e.preventDefault(); openLinkBox(); return; }
+    }
+
+    // "* " or "- " at the start of a line becomes a bullet, "1. " a numbered list
+    if (e.key === ' ') {
+      const c = caretContext();
+      if (!c || c.block === ed || c.block.nodeName === 'LI') return;
+      const tag = (c.before === '*' || c.before === '-') ? 'UL' : c.before === '1.' ? 'OL' : null;
+      if (!tag) return;
+      e.preventDefault();
+      toList(c.block, tag);
+      saveDoc();
+      return;
+    }
+
+    // backspace at the start of a bullet, or enter on an empty one, takes the bullet away
+    if (e.key === 'Backspace' || (e.key === 'Enter' && !e.shiftKey)) {
+      const c = caretContext();
+      if (c && c.block.nodeName === 'LI' && c.before === '' && (e.key === 'Backspace' || c.block.textContent === '')) {
+        e.preventDefault();
+        if (c.block.parentNode.parentNode !== ed) document.execCommand('outdent');
+        else fromList(c.block);
+        saveDoc();
+        return;
+      }
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const c = caretContext();
+      if (c && c.block.nodeName === 'LI') document.execCommand(e.shiftKey ? 'outdent' : 'indent');
+    }
+  });
+
+  // clicking anywhere outside the side bar closes it
+  document.addEventListener('mousedown', (e) => {
+    if (root.classList.contains('open') && !$('bar').contains(e.target) && e.target !== linkBox) toggleBar(false);
+  });
+
+  // clicking the margins still puts you on the page
+  document.addEventListener('mousedown', (e) => {
+    if (e.target === document.body || e.target === root || e.target.id === 'page' || e.target.id === 'lines' || e.target.classList?.contains('shim')) {
+      e.preventDefault();
+      if (document.activeElement !== ed) caretToEnd();
+    }
+  });
+
+  /* ================= side bar ================= */
+  function toggleBar(force) {
+    const open = root.classList.toggle('open', force);
+    if (!open) ed.focus({ preventScroll: true });
+  }
+  $('edge').onclick = () => toggleBar(true);
+
+  const saveNotes = saver(() => files.put('notes', notes.value), 400);
+  notes.addEventListener('input', saveNotes);
+
+  let todos = [];
+  const todoMd = () => todos.filter((t) => t.t.trim() || t.d).map((t) => `- [${t.d ? 'x' : ' '}] ${t.t.replace(/\s*\n\s*/g, ' ')}`).join('\n') + '\n';
+  const parseTodos = (md) => md.split('\n').map((l) => l.match(/^\s*[-*] \[([ xX])\] ?(.*)$/)).filter(Boolean).map((m) => ({ d: m[1] !== ' ', t: m[2] }));
+  const saveTodos = saver(() => files.put('todo', todoMd()), 300);
+
+  const CHECK = `<button class="check" type="button" tabindex="-1" aria-label="done"><svg viewBox="0 0 18 18" aria-hidden="true">
+    <rect class="box" x="3" y="4" width="11" height="11" rx="1.5"/>
+    <path class="tick" d="M5.6 9.4l2.6 3L16.2 2.4"/>
+  </svg></button>`;
+
+  function renderTodos(focusAt) {
+    if (!todos.length) todos.push({ t: '', d: false });
+    list.innerHTML = '';
+    todos.forEach((td, i) => {
+      const li = document.createElement('li');
+      li.classList.toggle('done', td.d);
+      li.innerHTML = CHECK;
+      const text = document.createElement('span');
+      text.className = 'text';
+      try { text.contentEditable = 'plaintext-only'; } catch { text.contentEditable = 'true'; }
+      text.textContent = td.t;
+      li.append(text);
+
+      li.querySelector('.check').onclick = () => { td.d = !td.d; li.classList.toggle('done', td.d); saveTodos(); };
+      text.oninput = () => { td.t = text.textContent; saveTodos(); };
+      text.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          todos.splice(i + 1, 0, { t: '', d: false }); saveTodos(); renderTodos(i + 1);
+        } else if (e.key === 'Backspace' && !text.textContent && todos.length > 1) {
+          e.preventDefault();
+          todos.splice(i, 1); saveTodos(); renderTodos(Math.max(0, i - 1));
+        } else if (e.key === 'ArrowUp' && i > 0) {
+          e.preventDefault(); focusTodo(i - 1);
+        } else if (e.key === 'ArrowDown' && i < todos.length - 1) {
+          e.preventDefault(); focusTodo(i + 1);
+        }
+      };
+      list.append(li);
+    });
+    if (focusAt != null) focusTodo(focusAt);
+  }
+  function focusTodo(i) {
+    const text = list.children[i]?.querySelector('.text');
+    if (!text) return;
+    text.focus();
+    placeCaret((r) => { r.selectNodeContents(text); r.collapse(false); });
+  }
+
+  /* ================= keys ================= */
+  document.addEventListener('keydown', (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key === '\\') { e.preventDefault(); toggleBar(); }
+    else if (e.key === 'Escape' && root.classList.contains('open')) toggleBar(false);
+    else if (mod && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      flushAll();
+      status('saved');
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flushAll(); });
+  window.addEventListener('pagehide', () => { leaving = true; flushAll(); });
+
+  /* ================= start ================= */
+  (async () => {
+    // carry over anything written in the first, browser-only version
+    try {
+      if (local.get('doc') && local.get('file.page') == null) {
+        local.set('file.page', JSON.parse(local.get('doc')));
+        local.set('file.notes', JSON.parse(local.get('notes') || '""'));
+        todos = JSON.parse(local.get('todos') || '[]');
+        local.set('file.todo', todoMd());
+      }
+    } catch {}
+
+    const [n, t] = await Promise.all([files.get('notes'), files.get('todo')]);
+    notes.value = n;
+    todos = parseTodos(t);
+    renderTodos();
+    await openDoc('page');
+  })();
+})();
+</script>
+</body>
+</html>
