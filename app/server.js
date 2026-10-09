@@ -100,6 +100,13 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, fs.readFileSync(path.join(APP, 'index.html')), 'text/html; charset=utf-8');
     }
 
+    // the side bar's handwriting font and drawn marks
+    const asset = url.pathname.match(/^\/assets\/([\w-]+\.(png|css))$/);
+    if (req.method === 'GET' && asset) {
+      const type = asset[2] === 'png' ? 'image/png' : 'text/css; charset=utf-8';
+      try { return send(res, 200, fs.readFileSync(path.join(APP, 'assets', asset[1])), type); } catch { return send(res, 404, 'not found'); }
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/days') {
       let days = [];
       try { days = fs.readdirSync(path.join(DIR, 'days')).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5)); } catch {}
