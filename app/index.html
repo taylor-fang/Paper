@@ -65,7 +65,6 @@
 
   /* ---------- the writing ---------- */
   #lines { position: relative; z-index: 1; font-size: var(--size); line-height: var(--lh); }
-  [data-font="inter"] #lines, [data-font="helvetica"] #lines { font-size: calc(var(--size) * .86); }
   #editor {
     position: relative;
     outline: none;
@@ -75,7 +74,6 @@
     min-height: 50vh;
     overflow-wrap: break-word;
   }
-  [data-font="inter"] #editor, [data-font="helvetica"] #editor { font-size: calc(var(--size) * .86); }
   [data-font="inter"] #editor { letter-spacing: -.005em; }
   #editor p { margin: 0 0 .5em; }
   #editor ul, #editor ol { margin: 0 0 .5em; padding-left: 2.1em; }
@@ -102,7 +100,7 @@
     position: fixed; top: 0; right: 0; bottom: 0;
     width: 320px; max-width: 88vw;
     display: flex; flex-direction: column;
-    padding: 28px 24px 20px;
+    padding: 56px 24px 20px;
     overflow-y: auto;
     background: var(--paper);
     border-left: 1px solid rgba(40, 30, 10, .07);
@@ -126,16 +124,17 @@
   #todoWrap { flex: 1 1 40%; margin-top: 24px; }
   #notes {
     flex: 1; outline: none; overflow-y: auto; cursor: text;
-    color: var(--ink);
-    font: calc(20.5px + var(--adj))/1.35 var(--font);
+    font: calc(18.5px + var(--adj))/1.35 var(--font);
+    color: rgba(0, 0, 0, .9);
+    padding-top: .08em; /* the first line starts where it did before the lines were tightened */
   }
   #notes p { margin: 0 0 .35em; }
 
   /* to-dos: your hand-drawn box, and a quick tick when done */
   #todos { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
-  #todos li { display: flex; align-items: flex-start; gap: .55em; font-size: calc(20px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
-  #todos .text { flex: 1; min-width: 0; outline: none; font: inherit; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
-  #todos .done .text { text-decoration: line-through; text-decoration-color: var(--ink); }
+  #todos li { display: flex; align-items: flex-start; gap: .55em; font-size: calc(18px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
+  #todos .text { flex: 1; min-width: 0; outline: none; font: inherit; color: rgba(0, 0, 0, .9); white-space: pre-wrap; overflow-wrap: anywhere; }
+  #todos .done .text { text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, .9); }
   /* sized and placed by fitBoxes(): its top meets the top of the capitals, its bottom just below the line */
   .check { flex: none; position: relative; padding: 0; border: 0; background: none; cursor: pointer; }
   .check img { position: absolute; left: 0; top: 0; display: block; height: 100%; width: auto; opacity: .6; }
@@ -147,20 +146,21 @@
   #bar footer { display: flex; flex-direction: column; margin-top: 24px; }
   .ld { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
   .ld .line { flex: 1; height: 3px; transform: translateY(-4px); background: linear-gradient(#c4bdb0, #c4bdb0) left center / 100% 1px no-repeat; }
-  .ld .v { font: calc(20px + var(--adj))/1.4 var(--font); color: var(--ink); text-align: right; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  .ld .v { font: calc(18px + var(--adj))/1.4 var(--font); color: rgba(0, 0, 0, .9); text-align: right; cursor: pointer; user-select: none; -webkit-user-select: none; }
   .ld .num { position: relative; display: inline-block; cursor: ew-resize; touch-action: none; }
-  .ld .num u { position: absolute; top: 50%; transform: translateY(-50%); line-height: 1; text-decoration: none; color: var(--soft); opacity: 0; transition: opacity .2s; cursor: pointer; }
+  .ld .num u { position: absolute; top: 50%; transform: translateY(-50%); display: block; line-height: 0; text-decoration: none; color: var(--soft); opacity: 0; transition: opacity .2s; cursor: pointer; padding: 4px 2px; }
+  .ld .num u svg { display: block; width: 5px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
   .ld .num u:first-child { right: 100%; margin-right: 4.6px; }
   .ld .num u:last-child { left: 100%; margin-left: 4.6px; }
   .ld:hover .num u { opacity: 1; }
 
   /* the word count, and export (or, on the website, the app download) */
   .tail { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-top: 28px; }
-  #count { font: italic calc(18.6px + var(--adj))/1 var(--font); color: var(--ink); opacity: .6; user-select: none; }
+  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: var(--ink); opacity: .6; user-select: none; }
   #export { display: flex; align-items: center; gap: 12px; }
   #export .sym { display: block; height: 15px; width: auto; opacity: .6; cursor: pointer; transition: opacity .25s; }
   #export .sym:hover { opacity: .9; }
-  #export .choice { font: calc(17px + var(--adj))/1 var(--font); color: var(--ink); opacity: .6; cursor: pointer; transition: opacity .2s; }
+  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: var(--ink); opacity: .6; cursor: pointer; transition: opacity .2s; }
   #export .choice:hover { opacity: 1; }
   #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; opacity: .6; text-decoration: none; transition: opacity .25s; }
   #export .dl:hover { opacity: .9; }
@@ -178,12 +178,12 @@
   .open #edge { display: none; }
 
   #caret {
-    position: absolute; z-index: 2; width: 4.5px; border-radius: 1.5px;
+    position: absolute; z-index: 2; width: 1px;
     background: rgb(60, 45, 20); pointer-events: none;
-    animation: breathe 2.2s ease-in-out infinite;
+    animation: breathe 2.4s cubic-bezier(.45, 0, .55, 1) infinite alternate;
   }
   #caret[hidden] { display: none; }
-  @keyframes breathe { 0%, 100% { opacity: .16; } 50% { opacity: .04; } }
+  @keyframes breathe { from { opacity: .45; } to { opacity: 0; } }
 
   #status {
     position: fixed; left: 20px; bottom: 16px;
@@ -295,14 +295,19 @@
   }
 
   /* ================= settings ================= */
-  const DEFAULTS = { font: 'times', size: 20, spacing: 1.4, paper: 'full' };
+  const DEFAULTS = { font: 'times', size: 15, spacing: 1.4, paper: 'full', unit: 'pt' };
   const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
+  // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
+  if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
+  // each paper keeps its own size
+  if (!s.sizes) s.sizes = { full: 16, sheet: 14 };
+  s.size = s.sizes[s.paper] ?? DEFAULTS.size;
 
   const CHOICES = {
     font: [['times', 'Times'], ['inter', 'Inter'], ['helvetica', 'Helvetica']],
     paper: [['full', 'Open'], ['sheet', 'Leaf']],
   };
-  const RANGE = { size: [14, 30, 1], spacing: [1, 2, .1] };
+  const RANGE = { size: [10, 30, 1], spacing: [1, 2, .1] }; // size in points, as in Pages and Word
   const SHOW = { size: (v) => String(v), spacing: (v) => v.toFixed(1) };
   const snap = (k, v) => { const [a, b, st] = RANGE[k]; return +Math.min(b, Math.max(a, Math.round(v / st) * st)).toFixed(2); };
   // settings saved before these choices existed land on the nearest one
@@ -331,7 +336,7 @@
         };
       } else {
         v.classList.add('num');
-        v.innerHTML = '<u data-d="-1">‹</u><span class="n"></span><u data-d="1">›</u>';
+        v.innerHTML = '<u data-d="-1"><svg viewBox="0 0 5 9"><path d="M4.4 .6 L.6 4.5 L4.4 8.4"/></svg></u><span class="n"></span><u data-d="1"><svg viewBox="0 0 5 9"><path d="M.6 .6 L4.4 4.5 L.6 8.4"/></svg></u>';
         v.querySelectorAll('u').forEach((u) => u.onclick = (e) => { e.stopPropagation(); set(key, snap(key, s[key] + +u.dataset.d * RANGE[key][2])); });
         const n = v.querySelector('.n');
         let x0, v0;
@@ -349,11 +354,26 @@
     else showExport(false);
   }
 
+  // each arrow's point at exactly the height of its row's line
+  function alignArrows() {
+    document.querySelectorAll('#options .ld').forEach((row) => {
+      const num = row.querySelector('.num');
+      if (!num) return;
+      const line = row.querySelector('.line').getBoundingClientRect();
+      const top = line.top + line.height / 2 - num.getBoundingClientRect().top;
+      num.querySelectorAll('u').forEach((u) => { u.style.top = top + 'px'; });
+    });
+  }
+
   function paintOptions() {
     document.querySelectorAll('#options .v').forEach((v) => {
       const k = v.dataset.key;
       if (CHOICES[k]) v.textContent = CHOICES[k].find(([x]) => x === s[k])[1];
-      else v.querySelector('.n').textContent = SHOW[k](s[k]);
+      else {
+        v.querySelector('.n').textContent = SHOW[k](s[k]);
+        v.querySelector('u[data-d="-1"]').style.visibility = s[k] <= RANGE[k][0] ? 'hidden' : '';
+        v.querySelector('u[data-d="1"]').style.visibility = s[k] >= RANGE[k][1] ? 'hidden' : '';
+      }
     });
   }
 
@@ -454,16 +474,34 @@
   window.addEventListener('resize', paginate);
   document.fonts?.ready.then(() => paginate());
 
+  // a font's "single" line spacing, as Docs and Word use it: the height the font itself asks for
+  const singles = new Map();
+  function singleSpacing() {
+    const family = getComputedStyle(ed).fontFamily;
+    if (!singles.has(family)) {
+      const probe = document.createElement('span');
+      probe.style.cssText = `position:absolute;visibility:hidden;font-family:${family};font-size:100px;line-height:normal;white-space:nowrap`;
+      probe.textContent = 'Hg';
+      document.body.append(probe);
+      singles.set(family, probe.getBoundingClientRect().height / 100);
+      probe.remove();
+    }
+    return singles.get(family);
+  }
+  document.fonts?.ready.then(() => { singles.clear(); applySettings(); });
+
   function applySettings() {
     for (const k of ['font', 'paper']) root.dataset[k] = s[k];
-    root.style.setProperty('--size', s.size + 'px');
-    root.style.setProperty('--lh', s.spacing);
+    root.style.setProperty('--size', s.size * 4 / 3 + 'px'); // points to pixels
+    root.style.setProperty('--lh', (s.spacing * singleSpacing()).toFixed(4));
     paintOptions();
-    requestAnimationFrame(fitBoxes);
+    requestAnimationFrame(() => { fitBoxes(); alignArrows(); });
   }
 
   function set(key, value) {
     s[key] = value;
+    if (key === 'size') s.sizes[s.paper] = value;
+    if (key === 'paper') s.size = s.sizes[value] ?? DEFAULTS.size;
     local.set('settings', JSON.stringify(s));
     if (native) ask({ op: 'settings', text: JSON.stringify(s) });
     applySettings();
@@ -472,7 +510,7 @@
 
   buildOptions();
   applySettings();
-  document.fonts?.ready.then(applySettings);
+  $('bar').addEventListener('transitionend', alignArrows);
 
   /* ================= the page ================= */
   document.execCommand('defaultParagraphSeparator', false, 'p');
@@ -743,16 +781,13 @@
         left = box.left;
         baseline = box.top + (lh - (m.boxAscent + m.boxDescent)) / 2 + m.boxAscent;
       }
-      // as tall as the letters themselves: the top of a d or h down to the bottom of a g or p
-      const h = m.ascender + m.descender;
-      caretMark.style.left = left + scrollX - 1 + 'px';
-      caretMark.style.top = baseline - m.ascender + scrollY + 'px';
+      // as tall as the letters themselves, sitting a little up from the tails so it reads level with the word
+      const letters = m.ascender + m.descender;
+      const h = Math.round(letters * 1.2); // 10% past the letters at the top and at the bottom
+      caretMark.style.left = Math.round(left + scrollX) + 'px'; // on the insertion point, on whole pixels
+      caretMark.style.top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1 + scrollY) + 'px';
       caretMark.style.height = h + 'px';
       caretMark.hidden = false;
-      // solid again after each move, then back to breathing
-      caretMark.style.animation = 'none';
-      void caretMark.offsetWidth;
-      caretMark.style.animation = '';
     });
   }
   document.addEventListener('selectionchange', drawCaret);
