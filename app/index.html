@@ -22,6 +22,7 @@
   }
   [data-font="inter"] { --font: InterVariable, Inter, system-ui, sans-serif; }
   [data-font="helvetica"] { --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  [data-font="palatino"] { --font: Palatino, "Palatino Linotype", "Book Antiqua", serif; }
 
   * { box-sizing: border-box; }
   /* no scroll bars anywhere: the page still scrolls, it just doesn't show a bar */
@@ -38,7 +39,7 @@
 
   /* ---------- paper: the whole screen ---------- */
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh 8vw 50vh; }
-  [data-paper="full"] #lines { max-width: 34em; margin-left: auto; margin-right: auto; }
+  [data-paper="full"] #lines { max-width: 44em; margin-left: auto; margin-right: auto; }
 
   /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
   [data-paper="sheet"] body { background: var(--desk); }
@@ -52,7 +53,6 @@
   .sheet {
     position: absolute; left: 0; right: 0;
     background: var(--paper);
-    box-shadow: 0 1px 2px rgba(40, 30, 10, .06), 0 10px 40px rgba(40, 30, 10, .08);
   }
   /* invisible floats that push the text past each page's bottom margin, the gap, and the next top margin */
   .shim { float: left; clear: left; width: 1px; margin-right: -1px; }
@@ -75,8 +75,10 @@
     overflow-wrap: break-word;
   }
   [data-font="inter"] #editor { letter-spacing: -.005em; }
-  #editor p { margin: 0 0 .5em; }
-  #editor ul, #editor ol { margin: 0 0 .5em; padding-left: 2.1em; }
+  #editor p { margin: 0; }
+  /* each line finds its own direction: Hebrew and Arabic run right to left, beside English */
+  #editor p, #editor li, #notes p, #todos .text, .pg .t { unicode-bidi: plaintext; text-align: start; }
+  #editor ul, #editor ol { margin: 0; padding-left: 2.1em; }
   #editor li { padding-left: .3em; }
   #editor ul ul, #editor ol ol, #editor ul ol, #editor ol ul { margin: 0; }
   #editor strike, #editor s { text-decoration-thickness: .07em; }
@@ -100,7 +102,7 @@
     position: fixed; top: 0; right: 0; bottom: 0;
     width: 320px; max-width: 88vw;
     display: flex; flex-direction: column;
-    padding: 56px 24px 20px;
+    padding: 39px 24px 20px;
     overflow-y: auto;
     background: var(--paper);
     border-left: 1px solid rgba(40, 30, 10, .07);
@@ -123,7 +125,7 @@
   #notesWrap { flex: 1 1 50%; }
   #todoWrap { flex: 1 1 40%; margin-top: 24px; }
   #notes {
-    flex: 1; outline: none; overflow-y: auto; cursor: text;
+    flex: 1; outline: none; overflow-y: auto; cursor: text; caret-color: transparent;
     font: calc(18.5px + var(--adj))/1.35 var(--font);
     color: rgba(0, 0, 0, .9);
     padding-top: .08em; /* the first line starts where it did before the lines were tightened */
@@ -132,15 +134,23 @@
 
   /* to-dos: your hand-drawn box, and a quick tick when done */
   #todos { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
-  #todos li { display: flex; align-items: flex-start; gap: .55em; font-size: calc(18px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
-  #todos .text { flex: 1; min-width: 0; outline: none; font: inherit; color: rgba(0, 0, 0, .9); white-space: pre-wrap; overflow-wrap: anywhere; }
-  #todos .done .text { text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, .9); }
+  #todos li { position: relative; display: flex; align-items: flex-start; gap: .55em; font-size: calc(18px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
+  #todos .text { flex: 1; min-width: 0; outline: none; caret-color: transparent; font: inherit; color: rgba(0, 0, 0, .9); white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* done: a thin straight black line through the middle of the words (see strikeThrough) */
+  #todos .strike { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  #todos .strike path { fill: none; stroke: #000; stroke-width: 1; }
   /* sized and placed by fitBoxes(): its top meets the top of the capitals, its bottom just below the line */
   .check { flex: none; position: relative; padding: 0; border: 0; background: none; cursor: pointer; }
   .check img { position: absolute; left: 0; top: 0; display: block; height: 100%; width: auto; opacity: .6; }
-  .check .b1 { opacity: .9; display: none; }
-  .done .check .b1 { display: block; }
-  .done .check .b0 { visibility: hidden; }
+  /* the tick is one of five from your own hand, on a canvas with room above and to the right of
+     the box (22px of 147 tall, 22 of 158 wide), turning and growing about its own point */
+  /* the tick: one of your four, revealed along the pen's path when you tick it (280 ms) */
+  .check svg { position: absolute; left: 0; top: -14.966%; height: 114.966%; width: auto; overflow: visible; opacity: .9; display: none; transform-origin: 31.67% 77.51%; }
+  .done .check svg { display: block; }
+  .check svg path { fill: none; stroke: #fff; stroke-width: 34; stroke-linecap: round; stroke-linejoin: round; }
+  .check svg path.go { stroke-dasharray: 1 1; animation: draw 280ms cubic-bezier(.45, 0, .65, 1) both; }
+  @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  .done .check .b0 { opacity: .9; }
 
   /* settings: your handwritten label, a fine line, then the value */
   #bar footer { display: flex; flex-direction: column; margin-top: 24px; }
@@ -156,29 +166,46 @@
 
   /* the word count, and export (or, on the website, the app download) */
   .tail { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-top: 28px; }
-  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: var(--ink); opacity: .6; user-select: none; }
+  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: #000; user-select: none; }
+  .tools { display: flex; align-items: center; gap: 16px; }
   #export { display: flex; align-items: center; gap: 12px; }
-  #export .sym { display: block; height: 15px; width: auto; opacity: .6; cursor: pointer; transition: opacity .25s; }
-  #export .sym:hover { opacity: .9; }
-  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: var(--ink); opacity: .6; cursor: pointer; transition: opacity .2s; }
-  #export .choice:hover { opacity: 1; }
-  #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; opacity: .6; text-decoration: none; transition: opacity .25s; }
-  #export .dl:hover { opacity: .9; }
+  #papersBtn { display: block; height: 16px; width: auto; cursor: pointer; }
+  .papers-view #papersBtn { height: 11px; } /* the back arrow */
+  #papersBtn:hover, #papersBtn:active { opacity: .6; }
 
-  /* the dog-ear: move toward the right edge and the top corner of the page folds down; click to open */
-  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 28px; cursor: pointer; z-index: 2; }
-  #edge::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
-    /* the top-right half is what's under the page; the other half is the fold's back */
-    background: linear-gradient(225deg, var(--bar) 50%, #e3dccf 50%);
-    box-shadow: -1px 1px 3px rgba(40, 30, 10, .1);
-    transition: width .35s var(--ease), height .35s var(--ease);
+  /* papers: the side bar becomes a little desk of tiny pages; click one to open it */
+  /* two side bars that never overlap: notes and to-dos, or papers; the corner icon switches */
+  #bar #papersWrap { display: none; flex: 1 1 auto; min-height: 0; }
+  .papers-view #bar #papersWrap { display: flex; }
+  .papers-view #notesWrap, .papers-view #todoWrap, .papers-view #options .ld { display: none; }
+  .papers-view #count, .papers-view #export { visibility: hidden; }
+  .pgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 18px 18px; padding: 2px 1px 8px; }
+  .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
+  .pg:hover { border-color: var(--soft); }
+  .pg.on { border-color: rgba(0, 0, 0, .8); }
+  .pg .t {
+    display: block; white-space: pre-line; /* each paragraph on its own line; fitted to the page by fitPreview() */
+    font: 400 15px/1.2 "Paper Hand", var(--font); color: rgba(0, 0, 0, .9); overflow-wrap: anywhere;
   }
-  #edge:hover::after { width: 30px; height: 30px; }
+  .pg .t.blank { opacity: .4; }
+  .pg.new { display: flex; align-items: center; justify-content: center; border-style: dashed; }
+  .pg.new img { height: 14px; width: auto; }
+  #export .sym { display: block; height: 15px; width: auto; cursor: pointer; }
+  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: #000; cursor: pointer; }
+  #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; text-decoration: none; }
+  #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: .6; }
+
+  /* a handwritten S at the middle of the right edge, shown when you come near it, opens the side bar */
+  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 44px; cursor: pointer; z-index: 2; }
+  #edge::after {
+    content: "S"; position: absolute; right: 17.6px; top: 50%; transform: translateY(-50%);
+    font: 400 24px/1 "Paper Hand", var(--font); color: #000; opacity: 0; transition: opacity .3s;
+  }
+  #edge:hover::after { opacity: .55; }
   .open #edge { display: none; }
 
   #caret {
-    position: absolute; z-index: 2; width: 1px;
+    position: absolute; z-index: 4; width: 1px;
     background: rgb(60, 45, 20); pointer-events: none;
     animation: breathe 2.4s cubic-bezier(.45, 0, .55, 1) infinite alternate;
   }
@@ -203,18 +230,22 @@
 
   <div id="page">
     <div id="sheets"></div>
-    <div id="lines"><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true"></div></div>
+    <div id="lines"><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div></div>
   </div>
 
   <div id="edge"></div>
   <aside id="bar">
     <section id="notesWrap">
       <h2>Notes</h2>
-      <div id="notes" contenteditable="true" spellcheck="true"></div>
+      <div id="notes" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div>
     </section>
     <section id="todoWrap">
       <h2>To do</h2>
       <ul id="todos"></ul>
+    </section>
+    <section id="papersWrap">
+      <h2>Papers</h2>
+      <div class="pgrid" id="pgrid"></div>
     </section>
     <footer id="options"></footer>
   </aside>
@@ -252,6 +283,7 @@
     },
     put(name, text) {
       local.set('file.' + name, text);
+      local.set('mtime.' + name, String(Date.now()));
       if (native) return void ask({ op: 'put', name, text });
       if (!onServer) return;
       fetch('/api/files/' + name, {
@@ -260,6 +292,22 @@
         body: text,
         keepalive: leaving && text.length < 60000,
       }).catch(() => {});
+    },
+    async list() {
+      if (native) return (await ask({ op: 'list' })) || [];
+      if (onServer) {
+        try { const r = await fetch('/api/papers'); if (r.ok) return await r.json(); } catch {}
+      }
+      const out = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const m = localStorage.key(i).match(/^paper\.file\.(page|paper-[a-z0-9]+)$/);
+          if (!m) continue;
+          const doc = new DOMParser().parseFromString(localStorage.getItem(localStorage.key(i)), 'text/html');
+          out.push({ name: m[1], first: previewOf(doc), modified: +(local.get('mtime.' + m[1]) || 0) });
+        }
+      } catch {}
+      return out;
     },
     markdown(name, text) {
       if (native) return void ask({ op: 'markdown', name, text });
@@ -304,7 +352,7 @@
   s.size = s.sizes[s.paper] ?? DEFAULTS.size;
 
   const CHOICES = {
-    font: [['times', 'Times'], ['inter', 'Inter'], ['helvetica', 'Helvetica']],
+    font: [['times', 'Times'], ['inter', 'Inter'], ['helvetica', 'Helvetica'], ['palatino', 'Palatino']],
     paper: [['full', 'Open'], ['sheet', 'Leaf']],
   };
   const RANGE = { size: [10, 30, 1], spacing: [1, 2, .1] }; // size in points, as in Pages and Word
@@ -337,7 +385,18 @@
       } else {
         v.classList.add('num');
         v.innerHTML = '<u data-d="-1"><svg viewBox="0 0 5 9"><path d="M4.4 .6 L.6 4.5 L4.4 8.4"/></svg></u><span class="n"></span><u data-d="1"><svg viewBox="0 0 5 9"><path d="M.6 .6 L4.4 4.5 L.6 8.4"/></svg></u>';
-        v.querySelectorAll('u').forEach((u) => u.onclick = (e) => { e.stopPropagation(); set(key, snap(key, s[key] + +u.dataset.d * RANGE[key][2])); });
+        v.querySelectorAll('u').forEach((u) => {
+          const step = () => set(key, snap(key, s[key] + +u.dataset.d * RANGE[key][2]));
+          let wait, repeat;
+          const stop = () => { clearTimeout(wait); clearInterval(repeat); };
+          u.onpointerdown = (e) => {
+            e.preventDefault(); e.stopPropagation();
+            step();
+            wait = setTimeout(() => { repeat = setInterval(step, 90); }, 350); // hold to keep going
+          };
+          u.onpointerup = u.onpointerleave = u.onpointercancel = stop;
+          u.onclick = (e) => e.stopPropagation();
+        });
         const n = v.querySelector('.n');
         let x0, v0;
         n.onpointerdown = (e) => { n.setPointerCapture(e.pointerId); x0 = e.clientX; v0 = s[key]; };
@@ -348,10 +407,11 @@
     }
     const tail = document.createElement('div');
     tail.className = 'tail';
-    tail.innerHTML = '<span id="count"></span><span id="export"></span>';
+    tail.innerHTML = '<span id="count"></span><span class="tools"><span id="export"></span><img id="papersBtn" src="assets/icon-pages.png" alt="papers" title="papers"></span>';
     box.append(tail);
     if (onWeb) $('export').innerHTML = '<a class="dl" href="Paper.zip" download>download</a>';
     else showExport(false);
+    $('papersBtn').onclick = (e) => { e.stopPropagation(); showPapers(!root.classList.contains('papers-view')); };
   }
 
   // each arrow's point at exactly the height of its row's line
@@ -422,6 +482,7 @@
       b.style.width = (BOX_IN_IMAGE.left + BOX_IN_IMAGE.width) * imgW + 'px';
       b.style.marginTop = capTop - BOX_IN_IMAGE.top * imgH + 'px';
     });
+    strikeAll(); // the lines through done to-dos follow the font and size too
   }
 
   /* ---------- leaf: lay the text out across letter-size pages ---------- */
@@ -493,7 +554,7 @@
   function applySettings() {
     for (const k of ['font', 'paper']) root.dataset[k] = s[k];
     root.style.setProperty('--size', s.size * 4 / 3 + 'px'); // points to pixels
-    root.style.setProperty('--lh', (s.spacing * singleSpacing()).toFixed(4));
+    root.style.setProperty('--lh', s.spacing);
     paintOptions();
     requestAnimationFrame(() => { fitBoxes(); alignArrows(); });
   }
@@ -596,14 +657,87 @@
     } catch {}
   }
 
+  // words as each language has them: Chinese and Japanese don't put spaces between words
+  const words = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'word' }) : null;
   function recount() {
-    const n = (ed.innerText.match(/\S+/g) || []).length;
+    const text = ed.innerText;
+    const n = words ? [...words.segment(text)].filter((w) => w.isWordLike).length : (text.match(/\S+/g) || []).length;
     $('count').textContent = n === 1 ? '1 word' : n + ' words';
   }
 
   function retitle() {
-    const first = (ed.querySelector('p, li')?.textContent || '').trim().slice(0, 48);
+    const first = Array.from((ed.querySelector('p, li')?.textContent || '').trim()).slice(0, 48).join(''); // whole characters, never half an emoji
     document.title = first || 'Paper';
+    if (native) ask({ op: 'title', text: document.title });
+  }
+
+  /* ---------- papers ---------- */
+  const newName = () => 'paper-' + Date.now().toString(36);
+  async function newPaper() {
+    const name = newName();
+    files.put(name, '<p><br></p>');
+    await openDoc(name);
+  }
+  // a paper's writing from the top, a line per paragraph, its blank lines kept (but none trailing at the end)
+  const previewOf = (root) => [...root.querySelectorAll('p, li')].map((b) => b.textContent.replace(/\s+/g, ' ').trim()).join('\n').replace(/\s+$/, '').slice(0, 600);
+
+  // as much as fits on the tiny page, with room for the tails of g and y on the last line,
+  // cut at a word with … where it stops
+  function fitPreview(el) {
+    const full = el.textContent;
+    const page = el.parentElement, cs = getComputedStyle(page);
+    const room = page.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(getComputedStyle(el).fontSize) * .45;
+    if (el.offsetHeight <= room) return;
+    const chars = Array.from(full);
+    const cut = (n) => chars.slice(0, n).join('').replace(/\s+\S*$/, '').replace(/[\s,.;:]+$/, '') + '…';
+    let lo = 0, hi = chars.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      el.textContent = cut(mid);
+      if (el.offsetHeight <= room) lo = mid; else hi = mid - 1;
+    }
+    el.textContent = cut(lo);
+  }
+
+  // the corner icon: pages on the normal side bar, a back arrow on the papers one
+  function setPapersView(open) {
+    root.classList.toggle('papers-view', open);
+    const b = $('papersBtn');
+    if (b) {
+      b.src = open ? 'assets/icon-back.png' : 'assets/icon-pages.png';
+      b.alt = b.title = open ? 'back' : 'papers';
+    }
+  }
+  async function showPapers(open) {
+    setPapersView(open);
+    if (!open) return;
+    saveDoc.flush();
+    const grid = $('pgrid');
+    const papers = await files.list();
+    // the open paper's first line is whatever is on the page right now
+    const here = papers.find((p) => p.name === docName);
+    if (here) here.first = previewOf(ed);
+    else papers.push({ name: docName, first: previewOf(ed), modified: Date.now() });
+    papers.sort((a, b) => b.modified - a.modified);
+    grid.innerHTML = '';
+    const plus = document.createElement('div');
+    plus.className = 'pg new';
+    plus.title = 'new paper';
+    plus.innerHTML = '<img src="assets/icon-new.png" alt="new">';
+    plus.onclick = async () => { await newPaper(); showPapers(false); };
+    for (const p of papers) {
+      const el = document.createElement('div');
+      el.className = 'pg' + (p.name === docName ? ' on' : '');
+      const t = document.createElement('span');
+      const blank = !p.first.trim();
+      t.className = 't' + (blank ? ' blank' : '');
+      t.textContent = blank ? 'untitled' : p.first;
+      el.append(t);
+      el.onclick = async () => { if (p.name !== docName) await openDoc(p.name); showPapers(false); };
+      grid.append(el);
+    }
+    grid.append(plus);
+    grid.querySelectorAll('.pg:not(.new) .t:not(.blank)').forEach(fitPreview);
   }
 
   // on the website, a first visit opens on a short note; it's ordinary text, delete it and it's gone
@@ -612,7 +746,10 @@
   async function openDoc(name) {
     saveDoc.flush();
     docName = name;
-    const firstVisit = onWeb && local.get('file.' + name) == null;
+    s.current = name;
+    local.set('settings', JSON.stringify(s));
+    if (native) ask({ op: 'open', name });
+    const firstVisit = onWeb && name === 'page' && local.get('file.' + name) == null;
     ed.innerHTML = (await files.get(name)).trim() || (firstVisit ? STARTER : '<p><br></p>');
     retitle();
     recount();
@@ -753,11 +890,17 @@
   }
   document.fonts?.ready.then(() => metricsCache.clear());
 
+  let lastCaretTop = '', caretJumped = false;
+  for (const el of [ed, notes, list]) el.addEventListener('mousedown', () => { caretJumped = true; });
+  // the page, the notes, or a to-do: wherever you're typing
+  const typingIn = (el) => el === ed || el === notes || (el?.classList?.contains('text') && list.contains(el));
+
   function drawCaret() {
     cancelAnimationFrame(caretFrame);
     caretFrame = requestAnimationFrame(() => {
       const sel = getSelection();
-      if (document.activeElement !== ed || !document.hasFocus() || !sel.rangeCount || !sel.isCollapsed || !ed.contains(sel.anchorNode)) {
+      const field = document.activeElement;
+      if (!typingIn(field) || !document.hasFocus() || !sel.rangeCount || !sel.isCollapsed || !field.contains(sel.anchorNode)) {
         caretMark.hidden = true;
         return;
       }
@@ -771,12 +914,25 @@
       const rects = r.getClientRects();
       const rect = rects[rects.length - 1];
       let left, baseline;
-      if (rect && rect.height) {
+      if ((!rect || !rect.height) && field !== ed && field !== notes) {
+        // a fresh line inside a to-do has nothing to measure: measure a mark put there for a moment
+        const at = caretOffset(field);
+        const mk = document.createElement('span');
+        mk.textContent = '\u200b';
+        r.insertNode(mk);
+        const mr = mk.getBoundingClientRect();
+        mk.remove();
+        field.normalize();
+        measuredAt = performance.now(); // the selection changes it fires here aren't the writer moving
+        placeCaret((x) => { const p = pointAt(field, at); x.setStart(p.node, p.offset); x.collapse(true); });
+        left = mr.left;
+        baseline = mr.bottom - m.boxDescent;
+      } else if (rect && rect.height) {
         left = rect.left;
         baseline = rect.bottom - m.boxDescent;
       } else {
         // an empty line has no text to measure, so find where its baseline would be
-        const box = (host.closest('p, li, div') || host).getBoundingClientRect();
+        const box = (host.classList.contains('text') ? host : host.closest('p, li, div') || host).getBoundingClientRect();
         const lh = parseFloat(cs.lineHeight) || fs * 1.4;
         left = box.left;
         baseline = box.top + (lh - (m.boxAscent + m.boxDescent)) / 2 + m.boxAscent;
@@ -784,15 +940,34 @@
       // as tall as the letters themselves, sitting a little up from the tails so it reads level with the word
       const letters = m.ascender + m.descender;
       const h = Math.round(letters * 1.2); // 10% past the letters at the top and at the bottom
-      caretMark.style.left = Math.round(left + scrollX) + 'px'; // on the insertion point, on whole pixels
-      caretMark.style.top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1 + scrollY) + 'px';
+      // the side bar stays put while the page scrolls, so its cursor does too
+      const fixed = field !== ed;
+      const sx = fixed ? 0 : scrollX, sy = fixed ? 0 : scrollY;
+      caretMark.style.position = fixed ? 'fixed' : 'absolute';
+      caretMark.style.left = Math.round(left + sx) + 'px'; // on the insertion point, on whole pixels
+      caretMark.style.top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1 + sy) + 'px';
       caretMark.style.height = h + 'px';
+      // on a new line, or after a click, start the breath again from its darkest so it's easy to find;
+      // while typing along a line it just keeps breathing
+      const where = caretMark.style.top;
+      if (caretJumped || where !== lastCaretTop || caretMark.hidden) {
+        caretMark.style.animation = 'none';
+        void caretMark.offsetWidth;
+        caretMark.style.animation = '';
+      }
+      caretJumped = false;
+      lastCaretTop = where;
       caretMark.hidden = false;
     });
   }
-  document.addEventListener('selectionchange', drawCaret);
-  ed.addEventListener('focus', drawCaret);
-  ed.addEventListener('blur', drawCaret);
+  let measuredAt = 0;
+  document.addEventListener('selectionchange', () => { if (performance.now() - measuredAt > 60) drawCaret(); });
+  notes.addEventListener('input', drawCaret);
+  list.addEventListener('input', drawCaret);
+  document.addEventListener('focusin', drawCaret);
+  document.addEventListener('focusout', drawCaret);
+  document.addEventListener('scroll', drawCaret, true); // notes and to-dos scroll on their own
+  $('bar').addEventListener('transitionend', drawCaret);
   window.addEventListener('focus', drawCaret);
   window.addEventListener('blur', drawCaret);
   window.addEventListener('resize', drawCaret);
@@ -952,17 +1127,41 @@
     if (root.classList.contains('open') && !$('bar').contains(e.target) && e.target !== linkBox) toggleBar(false);
   });
 
-  // clicking the margins still puts you on the page
+  // clicking the margins still puts you on the page; clicking below the writing
+  // adds empty lines down to where you clicked, so you can start writing there
   document.addEventListener('mousedown', (e) => {
-    if (e.target === document.body || e.target === root || e.target.id === 'page' || e.target.id === 'lines' || e.target.classList?.contains('shim')) {
-      e.preventDefault();
-      if (document.activeElement !== ed) caretToEnd();
-    }
+    const t = e.target;
+    const onPage = t === document.body || t === root || t === ed || t.id === 'page' || t.id === 'lines' || t.id === 'sheets' || t.classList?.contains('shim') || t.classList?.contains('sheet');
+    if (!onPage || e.button !== 0 || e.metaKey || e.shiftKey) return;
+    const last = ed.lastElementChild;
+    const below = last && e.clientY > last.getBoundingClientRect().bottom;
+    if (!below && t === ed) return; // beside a line: let the browser put the cursor there
+    e.preventDefault();
+    if (below) linesDownTo(e.clientY);
+    caretToEnd();
+    caretJumped = true;
+    drawCaret();
   });
+  function linesDownTo(y) {
+    let added = 0;
+    // one line at a time, since on a leaf a line can jump to the next page
+    while (added < 300 && ed.lastElementChild.getBoundingClientRect().bottom < y) {
+      const p = document.createElement('p');
+      p.innerHTML = '<br>';
+      ed.append(p);
+      added++;
+      paginate();
+    }
+    // stop on the line you clicked, not the one past it
+    const lastLine = ed.lastElementChild.getBoundingClientRect();
+    if (added > 1 && lastLine.top > y) { ed.lastElementChild.remove(); paginate(); }
+    if (added) { recount(); saveDoc(); }
+  }
 
   /* ================= side bar ================= */
   function toggleBar(force) {
     const open = root.classList.toggle('open', force);
+    if (!open) setPapersView(false); // it always reopens on notes and to-dos
     if (!open) ed.focus({ preventScroll: true });
   }
   $('edge').onclick = () => toggleBar(true);
@@ -987,37 +1186,162 @@
   });
 
   let todos = [];
-  const todoMd = () => todos.filter((t) => t.t.trim() || t.d).map((t) => `- [${t.d ? 'x' : ' '}] ${t.t.replace(/\s*\n\s*/g, ' ')}`).join('\n') + '\n';
-  const parseTodos = (md) => md.split('\n').map((l) => l.match(/^\s*[-*] \[([ xX])\] ?(.*)$/)).filter(Boolean).map((m) => ({ d: m[1] !== ' ', t: m[2] }));
+  const todoMd = () => todos.filter((t) => t.t.trim() || t.d).map((t) => `- [${t.d ? 'x' : ' '}] ${t.t.replace(/\n/g, '\n  ')}`).join('\n') + '\n';
+  function parseTodos(md) {
+    const out = [];
+    for (const l of md.split('\n')) {
+      const m = l.match(/^\s*[-*] \[([ xX])\] ?(.*)$/);
+      if (m) out.push({ d: m[1] !== ' ', t: m[2] });
+      else if (out.length && /^  /.test(l)) out[out.length - 1].t += '\n' + l.slice(2);
+    }
+    return out;
+  }
   const saveTodos = saver(() => files.put('todo', todoMd()), 300);
 
-  const CHECK = '<button class="check" type="button" tabindex="-1" aria-label="done"><img class="b0" src="assets/todo-box.png" alt=""><img class="b1" src="assets/todo-done.png" alt=""></button>';
+  const CHECK = '<button class="check" type="button" tabindex="-1" aria-label="done"><img class="b0" src="assets/todo-box.png" alt=""></button>';
 
-  function renderTodos(focusAt) {
+  // the text node and offset that's a number of characters into a to-do
+  function pointAt(el, n) {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walk.nextNode())) {
+      if (n <= node.length) return { node, offset: n };
+      n -= node.length;
+    }
+    return { node: el, offset: el.childNodes.length };
+  }
+  // how far into a to-do the cursor is, in characters
+  function caretOffset(el) {
+    const sel = getSelection();
+    if (!sel.rangeCount) return el.textContent.length;
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    r.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+    return r.toString().length;
+  }
+
+  // each to-do gets one of your four ticks, turned up to 6° and a touch bigger or smaller,
+  // the same every time it's shown
+  // a steady random from a seed: the same to-do always gets the same hand
+  function seeded(seed) {
+    let h = 2166136261;
+    for (const c of String(seed)) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+    return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296 * 2 - 1; };
+  }
+  // where each tick's pen went, in its image: down the short stroke to the point, then up to the tip
+  const TICK_PATHS = {"1": {"start": [49, 96], "vertex": [56, 130], "tip": [129, 19], "size": [180, 169]}, "2": {"start": [34, 69], "vertex": [56, 130], "tip": [106, 17], "size": [180, 169]}, "3": {"start": [50, 90], "vertex": [56, 130], "tip": [169, 13], "size": [180, 169]}, "4": {"start": [45, 88], "vertex": [56, 130], "tip": [123, 38], "size": [180, 169]}};
+  let tickId = 0;
+  function tickHand(seed) {
+    const rnd = seeded(seed);
+    const which = 1 + Math.floor((rnd() + 1) / 2 * 4) % 4;
+    const nudge = which === 2 ? ' translate(1px, -1px)' : ''; // the small upright one sits a pixel up and right
+    return { which, transform: `rotate(${(rnd() * 6).toFixed(2)}deg) scale(${(1 + rnd() * .05).toFixed(3)})${nudge}` };
+  }
+  function tickSvg(which) {
+    const p = TICK_PATHS[which], [W, H] = p.size, id = 'tick' + tickId++;
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><mask id="${id}" maskUnits="userSpaceOnUse" x="-20" y="-20" width="${W + 40}" height="${H + 40}">` +
+      `<path pathLength="1" d="M${p.start} L${p.vertex} L${p.tip}"/></mask><image href="assets/tick-${which}.png" width="${W}" height="${H}" mask="url(#${id})"/></svg>`;
+  }
+
+  // the line through a done to-do: thin, straight and black, through the middle of the small
+  // letters and exactly as long as the words; one per line of text
+  function strikeThrough(li) {
+    li.querySelector('.strike')?.remove();
+    if (!li.classList.contains('done')) return;
+    const text = li.querySelector('.text');
+    const words = text.textContent.replace(/\s+$/, '');
+    if (!words.trim()) return;
+    const first = document.createTreeWalker(text, NodeFilter.SHOW_TEXT).nextNode();
+    if (!first) return;
+    const r = document.createRange();
+    r.setStart(first, 0);
+    const last = pointAt(text, words.length);
+    r.setEnd(last.node, last.offset);
+    const box = li.getBoundingClientRect();
+    const cs = getComputedStyle(text);
+    const m = typeMetrics(cs, parseFloat(cs.fontSize));
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const xh = c.measureText('x').actualBoundingBoxAscent;
+    // a wrapped line can be reported twice; keep one per line
+    const rows = [];
+    for (const q of r.getClientRects()) {
+      if (q.width <= 1) continue;
+      const same = rows.find((o) => Math.abs(o.top - q.top) < 2);
+      if (same) { same.left = Math.min(same.left, q.left); same.right = Math.max(same.right, q.right); }
+      else rows.push({ top: q.top, left: q.left, right: q.right });
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'strike');
+    svg.setAttribute('aria-hidden', 'true');
+    for (const q of rows) {
+      const y = Math.round(q.top - box.top + m.boxAscent - xh * .5) + .5; // on a whole pixel, so it stays crisp
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', `M${(q.left - box.left).toFixed(1)} ${y} H${(q.right - box.left).toFixed(1)}`);
+      svg.append(path);
+    }
+    li.append(svg);
+  }
+  function strikeAll() { list.querySelectorAll('li.done').forEach((li) => strikeThrough(li)); }
+  window.addEventListener('resize', strikeAll);
+
+  function renderTodos(focusAt, atStart) {
     if (!todos.length) todos.push({ t: '', d: false });
     list.innerHTML = '';
     todos.forEach((td, i) => {
       const li = document.createElement('li');
       li.classList.toggle('done', td.d);
       li.innerHTML = CHECK;
+      const hand = tickHand(i + ':' + td.t);
+      li.querySelector('.check').insertAdjacentHTML('beforeend', tickSvg(hand.which));
+      li.querySelector('.check svg').style.transform = hand.transform;
       const text = document.createElement('span');
       text.className = 'text';
+      text.setAttribute('autocorrect', 'off');
+      text.setAttribute('writingsuggestions', 'false');
       try { text.contentEditable = 'plaintext-only'; } catch { text.contentEditable = 'true'; }
       text.textContent = td.t;
       li.append(text);
 
-      li.querySelector('.check').onclick = () => { td.d = !td.d; li.classList.toggle('done', td.d); saveTodos(); };
-      text.oninput = () => { td.t = text.textContent; saveTodos(); };
+      li.querySelector('.check').onclick = () => {
+        td.d = !td.d;
+        li.classList.toggle('done', td.d);
+        // the tick is drawn; the line through the words is just there
+        const pen = li.querySelector('.check svg path');
+        pen.classList.remove('go');
+        if (td.d) { void pen.getBoundingClientRect(); pen.classList.add('go'); }
+        strikeThrough(li);
+        saveTodos();
+      };
+      text.oninput = () => {
+        td.t = text.textContent.replace(/\n+$/, ''); // not the browser's placeholder break at the end
+        strikeThrough(li);
+        saveTodos();
+      };
       text.onkeydown = (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && e.shiftKey) {
           e.preventDefault();
-          todos.splice(i + 1, 0, { t: '', d: false }); saveTodos(); renderTodos(i + 1);
+          const at = caretOffset(text);
+          const all = text.textContent.replace(/\n+$/, '');
+          const after = all.slice(at);
+          // a break at the very end needs a second one after it to show; it isn't saved
+          text.textContent = all.slice(0, at) + '\n' + (after || '\n');
+          placeCaret((x) => { const p = pointAt(text, at + 1); x.setStart(p.node, p.offset); x.collapse(true); });
+          td.t = text.textContent.replace(/\n+$/, ''); saveTodos();
+        } else if (e.key === 'Enter' && !e.isComposing) {
+          e.preventDefault();
+          const at = caretOffset(text);
+          const all = text.textContent;
+          td.t = all.slice(0, at).replace(/\n+$/, '');
+          todos.splice(i + 1, 0, { t: all.slice(at).replace(/^[\n ]+/, ''), d: false });
+          saveTodos(); renderTodos(i + 1, true);
         } else if (e.key === 'Backspace' && !text.textContent && todos.length > 1) {
           e.preventDefault();
           todos.splice(i, 1); saveTodos(); renderTodos(Math.max(0, i - 1));
-        } else if (e.key === 'ArrowUp' && i > 0) {
+        } else if (e.key === 'ArrowUp' && i > 0 && !text.textContent.slice(0, caretOffset(text)).includes('\n')) {
           e.preventDefault(); focusTodo(i - 1);
-        } else if (e.key === 'ArrowDown' && i < todos.length - 1) {
+        } else if (e.key === 'ArrowDown' && i < todos.length - 1 && !text.textContent.slice(caretOffset(text)).includes('\n')) {
           e.preventDefault(); focusTodo(i + 1);
         }
       };
@@ -1025,13 +1349,13 @@
     });
     fitBoxes();
     list.querySelectorAll('.check img').forEach((img) => img.addEventListener('load', fitBoxes, { once: true }));
-    if (focusAt != null) focusTodo(focusAt);
+    if (focusAt != null) focusTodo(focusAt, atStart);
   }
-  function focusTodo(i) {
+  function focusTodo(i, atStart) {
     const text = list.children[i]?.querySelector('.text');
     if (!text) return;
     text.focus();
-    placeCaret((r) => { r.selectNodeContents(text); r.collapse(false); });
+    placeCaret((r) => { r.selectNodeContents(text); r.collapse(!!atStart); });
   }
 
   /* ================= keys ================= */
@@ -1065,7 +1389,9 @@
     setNotes(n);
     todos = parseTodos(t);
     renderTodos();
-    await openDoc('page');
+    const asked = new URLSearchParams(location.search).get('paper');
+    const start = asked && /^(page|paper-[a-z0-9]+)$/.test(asked) ? asked : (s.current && /^(page|paper-[a-z0-9]+)$/.test(s.current) ? s.current : 'page');
+    await openDoc(start);
   })();
 })();
 </script>

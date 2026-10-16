@@ -28,13 +28,24 @@ const APP = __dirname;
 
 const NAMED = { page: 'page.html', notes: 'notes.txt', todo: 'todo.md' };
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const PAPER = /^paper-[a-z0-9]+$/; // further papers, saved in ~/Paper/papers
 
 function fileFor(name) {
   if (NAMED[name]) return path.join(DIR, NAMED[name]);
   if (DAY.test(name)) return path.join(DIR, 'days', name + '.html');
+  if (PAPER.test(name)) return path.join(DIR, 'papers', name + '.html');
   return null;
 }
-const isPage = (name) => name === 'page' || DAY.test(name);
+const isPage = (name) => name === 'page' || DAY.test(name) || PAPER.test(name);
+
+// a paper's first line, as plain text, for the list of papers
+// a paper's writing from the top, a line per paragraph, blank lines kept (for its tiny page)
+function firstLine(html) {
+  const decode = (t) => t.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const lines = [...unwrap(html).matchAll(/<(p|li)[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => decode(m[2]));
+  return lines.join('\n').replace(/\s+$/, '').slice(0, 600);
+}
 
 // pages are saved as complete HTML documents, so they open on their own
 const START = '<!-- paper:start -->';
@@ -107,6 +118,21 @@ const server = http.createServer(async (req, res) => {
       try { return send(res, 200, fs.readFileSync(path.join(APP, 'assets', asset[1])), type); } catch { return send(res, 404, 'not found'); }
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/papers') {
+      const list = [];
+      const add = (name, file) => {
+        try { list.push({ name, first: firstLine(fs.readFileSync(file, 'utf8')), modified: fs.statSync(file).mtimeMs }); } catch {}
+      };
+      add('page', path.join(DIR, 'page.html'));
+      try {
+        for (const f of fs.readdirSync(path.join(DIR, 'papers'))) {
+          const name = f.replace(/\.html$/, '');
+          if (f.endsWith('.html') && PAPER.test(name)) add(name, path.join(DIR, 'papers', f));
+        }
+      } catch {}
+      return send(res, 200, JSON.stringify(list), 'application/json');
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/days') {
       let days = [];
       try { days = fs.readdirSync(path.join(DIR, 'days')).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5)); } catch {}
@@ -116,7 +142,7 @@ const server = http.createServer(async (req, res) => {
     // export to word: macOS's textutil turns the page's HTML into a .docx
     if (req.method === 'POST' && url.pathname === '/api/export/docx') {
       if (req.headers['x-paper'] !== '1') return send(res, 403, 'forbidden');
-      const font = url.searchParams.get('font') === 'inter' ? 'Inter' : 'Times New Roman';
+      const font = { inter: 'Inter', helvetica: 'Helvetica Neue', palatino: 'Palatino' }[url.searchParams.get('font')] || 'Times New Roman';
       const body = await readBody(req);
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-'));
       const html = path.join(tmp, 'page.html');
