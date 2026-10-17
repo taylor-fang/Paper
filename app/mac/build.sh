@@ -27,6 +27,8 @@ iconutil -c icns "$TMP/Paper.iconset" -o "$APP/Contents/Resources/Paper.icns"
 
 xattr -cr "$APP"
 codesign --force --sign - "$APP"
+# tell Finder about it again, so Open With lists Paper for .html and .md
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" 2>/dev/null || true
 echo "Built $APP"
 
 # the website: the same page, plus the app to download

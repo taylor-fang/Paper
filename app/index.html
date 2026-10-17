@@ -35,7 +35,7 @@
     font-family: var(--font);
     -webkit-font-smoothing: antialiased;
   }
-  ::selection { background: rgba(196, 170, 90, .28); }
+  ::selection { background: rgba(160, 176, 140, .22); } /* pale sage */
 
   /* ---------- paper: the whole screen ---------- */
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh 8vw 50vh; }
@@ -75,6 +75,7 @@
     overflow-wrap: break-word;
   }
   [data-font="inter"] #editor { letter-spacing: -.005em; }
+  [data-font="inter"] #editor b, [data-font="inter"] #editor strong { font-weight: 600; } /* Inter's 700 reads heavier than other fonts' bold */
   #editor p { margin: 0; }
   /* each line finds its own direction: Hebrew and Arabic run right to left, beside English */
   #editor p, #editor li, #notes p, #todos .text, .pg .t { unicode-bidi: plaintext; text-align: start; }
@@ -91,11 +92,29 @@
     width: 300px; max-width: calc(100vw - 32px);
     padding: 6px 10px; border: 1px solid var(--faint); border-radius: 3px; outline: none;
     background: var(--paper); color: var(--ink);
-    font: italic 14px/1.4 var(--font);
+    font: 14px/1.4 var(--font);
     box-shadow: 0 4px 16px rgba(40, 30, 10, .08);
   }
   #linkbox.show { display: block; }
   #linkbox::placeholder { color: var(--soft); }
+
+  /* ⌘F: find on the page itself (not the side bar); every match softly marked, the current one a little more */
+  #find {
+    position: fixed; z-index: 4; top: 16px; right: 64px; display: none; align-items: center; gap: 10px;
+    padding: 5px 10px; border: 1px solid var(--faint); border-radius: 3px;
+    background: var(--paper);
+  }
+  #find.show { display: flex; }
+  #find input { width: 190px; border: 0; outline: none; background: none; color: var(--ink); font: 14px/1.4 var(--font); padding: 0; }
+  #find span { font: 13px var(--font); color: #a8987f; white-space: nowrap; }
+  /* the matches: soft marks laid over the words (multiplied, so the ink stays black), the current one stronger */
+  #marks { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; mix-blend-mode: multiply; }
+  #marks i { position: absolute; background: rgba(160, 176, 140, .15); border-radius: 1px; }
+  #marks i.now { background: rgba(140, 162, 115, .32); }
+
+  /* the Mac app: the top of the window is for dragging it, not for writing */
+  #titlebar { display: none; position: fixed; z-index: 5; top: 0; left: 0; right: 60px; height: 28px; cursor: default; }
+  .native #titlebar { display: block; }
 
   /* ---------- side bar ---------- */
   #bar {
@@ -133,11 +152,11 @@
   #notes p { margin: 0 0 .35em; }
 
   /* to-dos: your hand-drawn box, and a quick tick when done */
-  #todos { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+  #todos { list-style: none; margin: 0; padding: 0; overflow-y: auto; outline: none; caret-color: transparent; }
   #todos li { position: relative; display: flex; align-items: flex-start; gap: .55em; font-size: calc(18px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
   #todos .text { flex: 1; min-width: 0; outline: none; caret-color: transparent; font: inherit; color: rgba(0, 0, 0, .9); white-space: pre-wrap; overflow-wrap: anywhere; }
   /* done: a thin straight black line through the middle of the words (see strikeThrough) */
-  #todos .strike { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  #todos .strike { user-select: none; -webkit-user-select: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   #todos .strike path { fill: none; stroke: #000; stroke-width: 1; }
   /* sized and placed by fitBoxes(): its top meets the top of the capitals, its bottom just below the line */
   .check { flex: none; position: relative; padding: 0; border: 0; background: none; cursor: pointer; }
@@ -190,7 +209,7 @@
   .pg .t.blank { opacity: .4; }
   .pg.new { display: flex; align-items: center; justify-content: center; border-style: dashed; }
   .pg.new img { height: 14px; width: auto; }
-  #export .sym { display: block; height: 15px; width: auto; cursor: pointer; }
+  #export .sym { display: block; height: 12px; width: auto; cursor: pointer; } /* the envelope is wider than tall, so a little shorter than the old arrow */
   #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: #000; cursor: pointer; }
   #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; text-decoration: none; }
   #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: .6; }
@@ -214,7 +233,7 @@
 
   #status {
     position: fixed; left: 20px; bottom: 16px;
-    font: italic 13px var(--font); color: var(--soft);
+    font: 13px var(--font); color: #a8987f; /* a light brown, like the paper's own lines */
     opacity: 0; transition: opacity .4s; pointer-events: none;
   }
   #status.show { opacity: 1; transition: opacity .1s; }
@@ -251,7 +270,10 @@
   </aside>
   <div id="status"></div>
   <div id="caret" hidden></div>
-  <input id="linkbox" type="text" placeholder="paste a link, then enter" spellcheck="false" autocomplete="off">
+  <input id="linkbox" type="text" placeholder="Paste a link, then enter" spellcheck="false" autocomplete="off">
+  <div id="marks" aria-hidden="true"></div>
+  <div id="titlebar" aria-hidden="true"></div>
+  <div id="find"><input type="text" spellcheck="false" autocomplete="off" autocorrect="off" writingsuggestions="false"><span></span></div>
 
 <script>
 (() => {
@@ -264,6 +286,7 @@
      Served by server.js on this Mac: the server saves files to ~/Paper.
      On the website, or opened as a plain file: this browser's own storage. */
   const native = window.webkit?.messageHandlers?.paper;
+  if (native) document.documentElement.classList.add('native');
   const onServer = !native && ['localhost', '127.0.0.1'].includes(location.hostname);
   const onWeb = !native && !onServer;
   const ask = (msg) => native.postMessage(msg).catch(() => null);
@@ -454,7 +477,7 @@
     }
     const sym = document.createElement('img');
     sym.className = 'sym';
-    sym.src = 'assets/oob-1k.png';
+    sym.src = 'assets/icon-export.png'; // your envelope
     sym.alt = sym.title = 'export';
     sym.onclick = (e) => { e.stopPropagation(); showExport(!exportOpen); };
     v.append(sym);
@@ -583,6 +606,58 @@
   }, 400);
 
   /* ---------- markdown ---------- */
+  // markdown to the page: paragraphs, lists (nested by indent), links, bold, italic, underline
+  // and strikethrough; headings and quotes become plain paragraphs, headings in bold
+  function fromMarkdown(md) {
+    const escHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    function inline(t) {
+      const held = [];
+      const hold = (html) => `\u0000${held.push(html) - 1}\u0000`;
+      t = t.replace(/\\([\\`*_[\]#>~-])/g, (_, c) => hold(escHtml(c)));               // escaped marks stay as they are
+      t = t.replace(/`([^`]+)`/g, (_, c) => hold(escHtml(c)));                          // code: just its words
+      t = t.replace(/<u>([\s\S]*?)<\/u>/g, (_, c) => hold('<u>' + inline(c) + '</u>'));
+      t = t.replace(/\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, txt, href) =>
+        hold(`<a href="${escHtml(href).replace(/"/g, '&quot;')}">${inline(txt)}</a>`));
+      t = escHtml(t);
+      t = t.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, '<b>$2</b>');
+      t = t.replace(/(\*|_)(?=\S)([\s\S]*?\S)\1/g, '<i>$2</i>');
+      t = t.replace(/~~(?=\S)([\s\S]*?\S)~~/g, '<s>$1</s>');
+      return t.replace(/\u0000(\d+)\u0000/g, (_, k) => held[+k]);
+    }
+    const out = [];
+    const lines = md.replace(/\r\n?/g, '\n').split('\n');
+    let para = [];
+    const flush = () => { if (para.length) out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; };
+    for (let k = 0; k < lines.length; k++) {
+      const line = lines[k];
+      const item = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+      if (item) {
+        flush();
+        // a run of list lines, nested by how far each is indented
+        const stack = [];
+        for (; k < lines.length; k++) {
+          const m = lines[k].match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+          if (!m) { k--; break; }
+          const depth = m[1].replace(/\t/g, '    ').length, tag = /\d/.test(m[2]) ? 'ol' : 'ul';
+          while (stack.length && depth < stack[stack.length - 1].depth) out.push(`</li></${stack.pop().tag}>`);
+          const top = stack[stack.length - 1];
+          if (!top || depth > top.depth) { out.push(`<${tag}><li>`); stack.push({ depth, tag }); }
+          else if (top.tag !== tag) { out.push(`</li></${stack.pop().tag}><${tag}><li>`); stack.push({ depth, tag }); } // bullets, then numbers
+          else out.push('</li><li>');
+          out.push(inline(m[3]));
+        }
+        while (stack.length) out.push(`</li></${stack.pop().tag}>`);
+        continue;
+      }
+      if (!line.trim()) { flush(); continue; }
+      const head = line.match(/^#{1,6}\s+(.*?)\s*#*$/);
+      if (head) { flush(); out.push('<p><b>' + inline(head[1]) + '</b></p>'); continue; }
+      para.push(line.replace(/^>\s?/, '').replace(/\s{2,}$/, ''));
+    }
+    flush();
+    return out.join('');
+  }
+
   function toMarkdown(rootEl) {
     const esc = (t) => t.replace(/\u00a0/g, ' ').replace(/([\\`*_\[\]])/g, '\\$1');
     // markers have to hug the words: "** bold **" isn't bold in markdown
@@ -750,7 +825,9 @@
     local.set('settings', JSON.stringify(s));
     if (native) ask({ op: 'open', name });
     const firstVisit = onWeb && name === 'page' && local.get('file.' + name) == null;
-    ed.innerHTML = (await files.get(name)).trim() || (firstVisit ? STARTER : '<p><br></p>');
+    let body = await files.get(name);
+    if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
+    ed.innerHTML = body.trim() || (firstVisit ? STARTER : '<p><br></p>');
     retitle();
     recount();
     paginate();
@@ -768,7 +845,33 @@
   }
   const caretAtStart = (el) => placeCaret((r) => { r.setStart(el, 0); r.collapse(true); });
 
+  // a link whose words have all been deleted goes with them, and so does the invisible
+  // space that kept the cursor outside it
+  function tidyLinks() {
+    // the browser copies styles onto what it inserts; the page has none of its own
+    ed.querySelectorAll('[style]').forEach((el) => el.removeAttribute('style'));
+    ed.querySelectorAll('span:not([class])').forEach((el) => el.replaceWith(...el.childNodes));
+    for (const a of ed.querySelectorAll('a')) {
+      if (a.textContent.replace(/\u200b/g, '')) continue;
+      a.replaceWith(...[...a.childNodes].filter((n) => n.nodeName === 'BR'));
+    }
+    // an invisible space only belongs right after a link
+    const walk = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT);
+    const stray = [];
+    for (let n; (n = walk.nextNode());) if (n.data.includes('\u200b')) stray.push(n);
+    const sel = getSelection(), at = sel.rangeCount ? sel.getRangeAt(0) : null;
+    for (const n of stray) {
+      const afterLink = n.previousSibling?.nodeName === 'A';
+      for (let k = n.data.length - 1; k >= 0; k--) {
+        if (n.data[k] !== '\u200b' || (afterLink && k === 0)) continue;
+        const keep = at && at.startContainer === n && at.startOffset > k;
+        n.deleteData(k, 1);
+        if (keep) placeCaret((x) => { x.setStart(n, Math.min(at.startOffset - 1, n.length)); x.collapse(true); });
+      }
+    }
+  }
   ed.addEventListener('input', (e) => {
+    tidyLinks();
     if (!ed.textContent && !ed.querySelector('li')) { ed.innerHTML = '<p><br></p>'; caretToEnd(); }
     recount();
     paginate();
@@ -781,7 +884,16 @@
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     const html = e.clipboardData.getData('text/html');
-    if (!getSelection().isCollapsed && /^(https?:\/\/|mailto:)\S+$/.test(text.trim())) document.execCommand('createLink', false, text.trim());
+    const url = text.trim();
+    const isUrl = /^(https?:\/\/|mailto:)\S+$/.test(url) || /^www\.\S+\.\S+$/.test(url);
+    if (isUrl && !getSelection().isCollapsed) document.execCommand('createLink', false, toHref(url));
+    else if (isUrl) { // an address pasted on its own becomes a link, so ⌘K shows it in the link box
+      const a = document.createElement('a');
+      a.href = toHref(url);
+      a.textContent = url;
+      document.execCommand('insertHTML', false, a.outerHTML + '&#8203;');
+      tidyLinks();
+    }
     else if (html) {
       document.execCommand('insertHTML', false, cleanPaste(html));
       ed.querySelectorAll('[style]').forEach((el) => el.removeAttribute('style'));
@@ -893,7 +1005,7 @@
   let lastCaretTop = '', caretJumped = false;
   for (const el of [ed, notes, list]) el.addEventListener('mousedown', () => { caretJumped = true; });
   // the page, the notes, or a to-do: wherever you're typing
-  const typingIn = (el) => el === ed || el === notes || (el?.classList?.contains('text') && list.contains(el));
+  const typingIn = (el) => el === ed || el === notes || el === list;
 
   function drawCaret() {
     cancelAnimationFrame(caretFrame);
@@ -916,15 +1028,16 @@
       let left, baseline;
       if ((!rect || !rect.height) && field !== ed && field !== notes) {
         // a fresh line inside a to-do has nothing to measure: measure a mark put there for a moment
-        const at = caretOffset(field);
+        const sc = r.startContainer, so = r.startOffset;
         const mk = document.createElement('span');
         mk.textContent = '\u200b';
         r.insertNode(mk);
         const mr = mk.getBoundingClientRect();
+        const parent = mk.parentNode;
         mk.remove();
-        field.normalize();
+        if (sc.nodeType === 3 && parent) parent.normalize(); // inserting split the words; join them again
         measuredAt = performance.now(); // the selection changes it fires here aren't the writer moving
-        placeCaret((x) => { const p = pointAt(field, at); x.setStart(p.node, p.offset); x.collapse(true); });
+        placeCaret((x) => { x.setStart(sc.isConnected ? sc : parent, sc.isConnected ? Math.min(so, sc.nodeType === 3 ? sc.length : sc.childNodes.length) : 0); x.collapse(true); });
         left = mr.left;
         baseline = mr.bottom - m.boxDescent;
       } else if (rect && rect.height) {
@@ -944,9 +1057,17 @@
       const fixed = field !== ed;
       const sx = fixed ? 0 : scrollX, sy = fixed ? 0 : scrollY;
       caretMark.style.position = fixed ? 'fixed' : 'absolute';
+      let top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1), height = h;
+      if (fixed) {
+        // the cursor lives inside its box: where the notes or to-dos scroll past their edge, it's cut off
+        const box = field.getBoundingClientRect();
+        const t0 = Math.max(top, Math.floor(box.top)), t1 = Math.min(top + h, Math.ceil(box.bottom));
+        if (t1 - t0 < 2) { caretMark.hidden = true; return; }
+        top = t0; height = t1 - t0;
+      }
       caretMark.style.left = Math.round(left + sx) + 'px'; // on the insertion point, on whole pixels
-      caretMark.style.top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1 + sy) + 'px';
-      caretMark.style.height = h + 'px';
+      caretMark.style.top = top + sy + 'px';
+      caretMark.style.height = height + 'px';
       // on a new line, or after a click, start the breath again from its darkest so it's easy to find;
       // while typing along a line it just keeps breathing
       const where = caretMark.style.top;
@@ -961,6 +1082,9 @@
     });
   }
   let measuredAt = 0;
+  document.addEventListener('keydown', (e) => {
+    if (/^(Arrow|Home$|End$|Page)/.test(e.key) && typingIn(document.activeElement)) caretJumped = true;
+  }, true);
   document.addEventListener('selectionchange', () => { if (performance.now() - measuredAt > 60) drawCaret(); });
   notes.addEventListener('input', drawCaret);
   list.addEventListener('input', drawCaret);
@@ -1275,6 +1399,7 @@
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('class', 'strike');
     svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('contenteditable', 'false');
     for (const q of rows) {
       const y = Math.round(q.top - box.top + m.boxAscent - xh * .5) + .5; // on a whole pixel, so it stays crisp
       const path = document.createElementNS(ns, 'path');
@@ -1286,6 +1411,13 @@
   function strikeAll() { list.querySelectorAll('li.done').forEach((li) => strikeThrough(li)); }
   window.addEventListener('resize', strikeAll);
 
+  /* the to-do list is one editable area, so a drag can select across items and delete,
+     cut, copy, paste or type over all of them; Paper keeps the list itself in step */
+  list.contentEditable = 'true';
+  list.spellcheck = true;
+  list.setAttribute('autocorrect', 'off');
+  list.setAttribute('writingsuggestions', 'false');
+
   function renderTodos(focusAt, atStart) {
     if (!todos.length) todos.push({ t: '', d: false });
     list.innerHTML = '';
@@ -1293,80 +1425,355 @@
       const li = document.createElement('li');
       li.classList.toggle('done', td.d);
       li.innerHTML = CHECK;
+      const check = li.querySelector('.check');
+      check.contentEditable = 'false';
       const hand = tickHand(i + ':' + td.t);
-      li.querySelector('.check').insertAdjacentHTML('beforeend', tickSvg(hand.which));
-      li.querySelector('.check svg').style.transform = hand.transform;
+      check.insertAdjacentHTML('beforeend', tickSvg(hand.which));
+      check.querySelector('svg').style.transform = hand.transform;
       const text = document.createElement('span');
       text.className = 'text';
-      text.setAttribute('autocorrect', 'off');
-      text.setAttribute('writingsuggestions', 'false');
-      try { text.contentEditable = 'plaintext-only'; } catch { text.contentEditable = 'true'; }
       text.textContent = td.t;
+      text.append(document.createElement('br')); // somewhere for the cursor on an empty line, and after a final line break
       li.append(text);
-
-      li.querySelector('.check').onclick = () => {
-        td.d = !td.d;
-        li.classList.toggle('done', td.d);
-        // the tick is drawn; the line through the words is just there
-        const pen = li.querySelector('.check svg path');
-        pen.classList.remove('go');
-        if (td.d) { void pen.getBoundingClientRect(); pen.classList.add('go'); }
-        strikeThrough(li);
-        saveTodos();
-      };
-      text.oninput = () => {
-        td.t = text.textContent.replace(/\n+$/, ''); // not the browser's placeholder break at the end
-        strikeThrough(li);
-        saveTodos();
-      };
-      text.onkeydown = (e) => {
-        if (e.key === 'Enter' && e.shiftKey) {
-          e.preventDefault();
-          const at = caretOffset(text);
-          const all = text.textContent.replace(/\n+$/, '');
-          const after = all.slice(at);
-          // a break at the very end needs a second one after it to show; it isn't saved
-          text.textContent = all.slice(0, at) + '\n' + (after || '\n');
-          placeCaret((x) => { const p = pointAt(text, at + 1); x.setStart(p.node, p.offset); x.collapse(true); });
-          td.t = text.textContent.replace(/\n+$/, ''); saveTodos();
-        } else if (e.key === 'Enter' && !e.isComposing) {
-          e.preventDefault();
-          const at = caretOffset(text);
-          const all = text.textContent;
-          td.t = all.slice(0, at).replace(/\n+$/, '');
-          todos.splice(i + 1, 0, { t: all.slice(at).replace(/^[\n ]+/, ''), d: false });
-          saveTodos(); renderTodos(i + 1, true);
-        } else if (e.key === 'Backspace' && !text.textContent && todos.length > 1) {
-          e.preventDefault();
-          todos.splice(i, 1); saveTodos(); renderTodos(Math.max(0, i - 1));
-        } else if (e.key === 'ArrowUp' && i > 0 && !text.textContent.slice(0, caretOffset(text)).includes('\n')) {
-          e.preventDefault(); focusTodo(i - 1);
-        } else if (e.key === 'ArrowDown' && i < todos.length - 1 && !text.textContent.slice(caretOffset(text)).includes('\n')) {
-          e.preventDefault(); focusTodo(i + 1);
-        }
-      };
+      check.onmousedown = (e) => e.preventDefault(); // keep the selection, so a click can tick several
+      check.onclick = () => toggleDone(i);
       list.append(li);
     });
     fitBoxes();
     list.querySelectorAll('.check img').forEach((img) => img.addEventListener('load', fitBoxes, { once: true }));
-    if (focusAt != null) focusTodo(focusAt, atStart);
+    if (focusAt != null) focusTodo(focusAt, atStart ? 0 : null);
   }
-  function focusTodo(i, atStart) {
-    const text = list.children[i]?.querySelector('.text');
-    if (!text) return;
-    text.focus();
-    placeCaret((r) => { r.selectNodeContents(text); r.collapse(!!atStart); });
+
+  // tick one to-do, or every to-do in a selection that runs across several
+  function toggleDone(i) {
+    const sel = todoSel();
+    const span = sel && !sel.collapsed && sel.a.i !== sel.b.i && i >= sel.a.i && i <= sel.b.i ? [sel.a.i, sel.b.i] : [i, i];
+    const to = !todos[i].d;
+    for (let k = span[0]; k <= span[1]; k++) {
+      if (todos[k].d === to) continue;
+      todos[k].d = to;
+      const li = list.children[k];
+      li.classList.toggle('done', to);
+      const pen = li.querySelector('.check svg path');
+      pen.classList.remove('go');
+      if (to) { void pen.getBoundingClientRect(); pen.classList.add('go'); }
+      strikeThrough(li);
+    }
+    saveTodos();
   }
+
+  // where a point in the list is: which to-do, and how many characters in
+  function todoPos(node, offset) {
+    let li = (node.nodeType === 1 ? node : node.parentElement)?.closest('li');
+    if (!li || !list.contains(li)) {
+      if (node !== list) return null;
+      const n = list.children.length;
+      li = list.children[Math.min(offset, n - 1)];
+      const i = [...list.children].indexOf(li);
+      return { i, off: offset >= n ? todos[i].t.length : 0 };
+    }
+    const i = [...list.children].indexOf(li);
+    const text = li.querySelector('.text');
+    const len = text.textContent.length;
+    if (text.contains(node)) {
+      const r = document.createRange();
+      r.selectNodeContents(text);
+      r.setEnd(node, offset);
+      return { i, off: Math.min(r.toString().length, len) };
+    }
+    // on the li itself or its tick box: before the words or after them
+    const before = node === li ? offset <= [...li.childNodes].indexOf(text) : li.querySelector('.check').contains(node);
+    return { i, off: before ? 0 : len };
+  }
+  function todoSel() {
+    const sel = getSelection();
+    if (!sel.rangeCount || !list.contains(sel.anchorNode)) return null;
+    const r = sel.getRangeAt(0);
+    const a = todoPos(r.startContainer, r.startOffset), b = todoPos(r.endContainer, r.endOffset);
+    if (!a || !b) return null;
+    return { a, b, collapsed: a.i === b.i && a.off === b.off };
+  }
+  function pointInTodo(i, off) {
+    const text = list.children[i].querySelector('.text');
+    const walk = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
+    let node, n = off;
+    while ((node = walk.nextNode())) {
+      if (n <= node.length) return { node, offset: n };
+      n -= node.length;
+    }
+    return { node: text, offset: 0 }; // an empty to-do: before its <br>
+  }
+  function setTodoSel(a, b = a) {
+    list.focus({ preventScroll: true });
+    const p = pointInTodo(a.i, a.off), q = pointInTodo(b.i, b.off);
+    placeCaret((r) => { r.setStart(p.node, p.offset); r.setEnd(q.node, q.offset); });
+    caretJumped = true;
+    drawCaret();
+  }
+  function focusTodo(i, off) {
+    setTodoSel({ i, off: off == null ? todos[i].t.length : off });
+  }
+
+  // undo and redo for the list, since Paper edits it itself
+  const todoUndo = [], todoRedo = [];
+  let lastSnap = 0;
+  function remember(typing) {
+    const now = Date.now();
+    if (typing && now - lastSnap < 1000) return; // a run of typing is one step
+    lastSnap = typing ? now : 0;
+    todoUndo.push({ todos: JSON.stringify(todos), sel: todoSel() });
+    if (todoUndo.length > 200) todoUndo.shift();
+    todoRedo.length = 0;
+  }
+  function restore(from, to) {
+    const st = from.pop();
+    if (!st) return;
+    to.push({ todos: JSON.stringify(todos), sel: todoSel() });
+    todos = JSON.parse(st.todos);
+    renderTodos();
+    saveTodos();
+    if (st.sel && list.children[st.sel.a.i]) setTodoSel(st.sel.a, list.children[st.sel.b.i] ? st.sel.b : st.sel.a);
+  }
+
+  // take out everything between two points, joining what's left of the first and last to-do
+  function cutSpan(a, b) {
+    if (a.i === b.i) { todos[a.i].t = todos[a.i].t.slice(0, a.off) + todos[a.i].t.slice(b.off); return; }
+    todos[a.i].t = todos[a.i].t.slice(0, a.off) + todos[b.i].t.slice(b.off);
+    todos.splice(a.i + 1, b.i - a.i);
+  }
+  // put text in at a point: each new line of it becomes a new to-do ("- [ ]" and "- " are taken off)
+  function putText(a, text) {
+    const lines = text.replace(/\r\n?/g, '\n').split('\n').map((l, k) => k || a.off === 0 ? l.replace(/^\s*(?:[-*+]\s+)?(?:\[[ xX]\]\s*)?/, '') : l);
+    const td = todos[a.i], rest = td.t.slice(a.off);
+    if (lines.length === 1) { td.t = td.t.slice(0, a.off) + lines[0] + rest; return { i: a.i, off: a.off + lines[0].length }; }
+    td.t = td.t.slice(0, a.off) + lines[0];
+    const more = lines.slice(1).map((t) => ({ t, d: false }));
+    more[more.length - 1].t += rest;
+    todos.splice(a.i + 1, 0, ...more);
+    return { i: a.i + more.length, off: lines[lines.length - 1].length };
+  }
+  const selectedText = (sel) => {
+    const parts = [];
+    for (let k = sel.a.i; k <= sel.b.i; k++) parts.push(todos[k].t.slice(k === sel.a.i ? sel.a.off : 0, k === sel.b.i ? sel.b.off : undefined));
+    return parts.join('\n');
+  };
+  function redraw(at) {
+    renderTodos();
+    saveTodos();
+    setTodoSel(at);
+  }
+
+  list.addEventListener('beforeinput', (e) => {
+    const t = e.inputType;
+    if (t === 'historyUndo') { e.preventDefault(); return restore(todoUndo, todoRedo); }
+    if (t === 'historyRedo') { e.preventDefault(); return restore(todoRedo, todoUndo); }
+    if (t.startsWith('format')) return e.preventDefault(); // to-dos are plain text
+    const sel = todoSel();
+    if (!sel) return e.preventDefault();
+    const { a, b } = sel;
+    const across = a.i !== b.i;
+
+    if (t === 'insertParagraph') { // enter: a new to-do with the rest of the line
+      e.preventDefault(); remember();
+      cutSpan(a, b);
+      const td = todos[a.i];
+      const rest = td.t.slice(a.off).replace(/^[\n ]+/, '');
+      td.t = td.t.slice(0, a.off).replace(/\n+$/, '');
+      todos.splice(a.i + 1, 0, { t: rest, d: false });
+      return redraw({ i: a.i + 1, off: 0 });
+    }
+    if (t === 'insertLineBreak') { // shift-enter: a new line inside the to-do
+      e.preventDefault(); remember();
+      cutSpan(a, b);
+      const td = todos[a.i];
+      td.t = td.t.slice(0, a.off) + '\n' + td.t.slice(a.off);
+      return redraw({ i: a.i, off: a.off + 1 });
+    }
+    if (t === 'insertFromPaste' || t === 'insertFromDrop' || t === 'insertReplacementText' && across) {
+      e.preventDefault(); remember();
+      const text = e.dataTransfer?.getData('text/plain') ?? e.data ?? '';
+      cutSpan(a, b);
+      return redraw(putText(a, text));
+    }
+    if (t.startsWith('delete')) {
+      const back = /Backward$/.test(t) || t === 'deleteByCut' || t === 'deleteByDrag' || t === 'deleteContent';
+      if (!sel.collapsed) {
+        if (!across) { remember(true); return; } // inside one to-do, the browser does it
+        e.preventDefault(); remember();
+        cutSpan(a, b);
+        return redraw(a);
+      }
+      if (back && a.off === 0) { // at the start of a to-do: join it to the one above
+        e.preventDefault();
+        if (a.i === 0) return;
+        remember();
+        const prev = todos[a.i - 1], at = prev.t.length;
+        prev.t += todos[a.i].t;
+        todos.splice(a.i, 1);
+        return redraw({ i: a.i - 1, off: at });
+      }
+      if (!back && a.off === todos[a.i].t.length) { // at the end: bring the next one up
+        e.preventDefault();
+        if (a.i === todos.length - 1) return;
+        remember();
+        todos[a.i].t += todos[a.i + 1].t;
+        todos.splice(a.i + 1, 1);
+        return redraw(a);
+      }
+      remember(true);
+      return;
+    }
+    if (across && (t === 'insertText' || t === 'insertCompositionText')) { // typing over a selection across to-dos
+      e.preventDefault(); remember();
+      cutSpan(a, b);
+      return redraw(putText(a, e.data || ''));
+    }
+    remember(true);
+  });
+
+  // after the browser's own small edits (typing, deleting inside a to-do), read the words back
+  list.addEventListener('input', () => {
+    const items = [...list.children];
+    if (items.length !== todos.length || items.some((li) => !li.querySelector('.text'))) {
+      const at = todoSel();
+      todos = items.map((li) => ({ t: (li.querySelector('.text') || li).textContent.replace(/\n+$/, ''), d: li.classList.contains('done') }));
+      renderTodos();
+      if (at && list.children[at.a.i]) setTodoSel(at.a);
+    } else {
+      items.forEach((li, k) => {
+        const text = li.querySelector('.text');
+        if (!text.querySelector(':scope > br:last-child')) text.append(document.createElement('br'));
+        const t = text.textContent.replace(/\n+$/, '');
+        if (t !== todos[k].t) { todos[k].t = t; strikeThrough(li); }
+      });
+    }
+    saveTodos();
+  });
+
+  function copyTodos(e, cut) {
+    const sel = todoSel();
+    if (!sel || sel.collapsed) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', selectedText(sel));
+    if (cut) { remember(); cutSpan(sel.a, sel.b); redraw(sel.a); }
+  }
+  list.addEventListener('copy', (e) => copyTodos(e, false));
+  list.addEventListener('cut', (e) => copyTodos(e, true));
+  list.addEventListener('keydown', (e) => {
+    // ⌘-enter ticks the to-do (or all the selected ones)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      const sel = todoSel();
+      if (sel) toggleDone(sel.a.i);
+    }
+  });
+
+  /* ================= find (⌘F) ================= */
+  const findBox = $('find'), findInput = findBox.querySelector('input'), findCount = findBox.querySelector('span');
+  const marks = $('marks');
+  // every match marked by a small block laid over it; drawn fresh each time so nothing is left behind
+  function drawMarks() {
+    marks.textContent = '';
+    if (!findBox.classList.contains('show')) return;
+    const frag = document.createDocumentFragment();
+    found.forEach((r, k) => {
+      for (const q of r.getClientRects()) {
+        const m = document.createElement('i');
+        if (k === foundAt) m.className = 'now';
+        m.style.cssText = `left:${q.left + scrollX}px;top:${q.top + scrollY}px;width:${q.width}px;height:${q.height}px`;
+        frag.append(m);
+      }
+    });
+    marks.append(frag);
+  }
+  window.addEventListener('resize', drawMarks);
+  let found = [], foundAt = -1;
+  // exact matches: the whole word (or words), any case, even across bold or italic
+  function search() {
+    const q = findInput.value.trim().toLocaleLowerCase();
+    found = [];
+    if (q) {
+      // the page's words as one string, remembering which text each character came from
+      let text = '';
+      const at = [];
+      const walk = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT);
+      let node, block = null;
+      while ((node = walk.nextNode())) {
+        const b = node.parentElement.closest('p, li, div');
+        if (block && b !== block) { text += '\n'; at.push(null); } // lines never run together
+        block = b;
+        for (let k = 0; k < node.length; k++) at.push([node, k]);
+        text += node.data;
+      }
+      const low = text.toLocaleLowerCase();
+      const isWord = (c) => !!c && /[\p{L}\p{N}_]/u.test(c);
+      for (let k = low.indexOf(q); k !== -1; k = low.indexOf(q, k + 1)) {
+        const end = k + q.length;
+        if ((isWord(q[0]) && isWord(low[k - 1])) || (isWord(q[q.length - 1]) && isWord(low[end]))) continue; // part of a longer word
+        const a = at[k], b = at[end - 1];
+        if (!a || !b) continue;
+        const r = document.createRange();
+        r.setStart(a[0], a[1]);
+        r.setEnd(b[0], b[1] + 1);
+        found.push(r);
+      }
+    }
+    // start from the match nearest where you were
+    const here = getSelection().rangeCount && ed.contains(getSelection().anchorNode) ? getSelection().getRangeAt(0) : null;
+    foundAt = found.length ? Math.max(0, here ? found.findIndex((r) => r.compareBoundaryPoints(Range.START_TO_START, here) >= 0) : 0) : -1;
+    showFound(false);
+  }
+  function showFound(scroll) {
+    findCount.textContent = !findInput.value ? '' : found.length ? `${foundAt + 1} of ${found.length}` : 'None';
+    const r = found[foundAt];
+    if (r) {
+      const box = r.getBoundingClientRect();
+      if (scroll || box.top < 60 || box.bottom > innerHeight - 60) scrollBy({ top: box.top - innerHeight / 3 });
+    }
+    drawMarks();
+  }
+  function openFind() {
+    findBox.classList.add('show');
+    const sel = getSelection();
+    if (sel.rangeCount && !sel.isCollapsed && ed.contains(sel.anchorNode) && !sel.toString().includes('\n')) findInput.value = sel.toString();
+    findInput.focus();
+    findInput.select();
+    search();
+  }
+  function closeFind(keepPlace) {
+    findBox.classList.remove('show');
+    marks.textContent = '';
+    const r = found[foundAt];
+    ed.focus({ preventScroll: true });
+    if (keepPlace && r) placeCaret((x) => { x.setStart(r.startContainer, r.startOffset); x.setEnd(r.endContainer, r.endOffset); });
+    found = []; foundAt = -1;
+  }
+  findInput.addEventListener('input', search);
+  findInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && found.length) {
+      e.preventDefault();
+      foundAt = (foundAt + (e.shiftKey ? found.length - 1 : 1)) % found.length;
+      showFound(true);
+    } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFind(true); }
+  });
+  findInput.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== findInput && findBox.classList.contains('show')) closeFind(false); }, 0));
+  ed.addEventListener('input', () => { if (findBox.classList.contains('show')) search(); });
 
   /* ================= keys ================= */
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key === '\\') { e.preventDefault(); toggleBar(); }
+    if (mod && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); }
+    else if (mod && e.key.toLowerCase() === 'g' && findBox.classList.contains('show') && found.length) {
+      e.preventDefault();
+      foundAt = (foundAt + (e.shiftKey ? found.length - 1 : 1)) % found.length;
+      showFound(true);
+    }
+    else if (mod && e.key === '\\') { e.preventDefault(); toggleBar(); }
     else if (e.key === 'Escape' && root.classList.contains('open')) toggleBar(false);
     else if (mod && e.key.toLowerCase() === 's') {
       e.preventDefault();
       flushAll();
-      status('saved');
+      status('Saved');
     }
   });
 
@@ -1390,7 +1797,8 @@
     todos = parseTodos(t);
     renderTodos();
     const asked = new URLSearchParams(location.search).get('paper');
-    const start = asked && /^(page|paper-[a-z0-9]+)$/.test(asked) ? asked : (s.current && /^(page|paper-[a-z0-9]+)$/.test(s.current) ? s.current : 'page');
+    const NAME = /^(page|paper-[a-z0-9]+|file-[a-z0-9]+)$/; // file-…: an .html or .md opened from Finder (the Mac app)
+    const start = asked && NAME.test(asked) ? asked : (s.current && NAME.test(s.current) && (native || !s.current.startsWith('file-')) ? s.current : 'page');
     await openDoc(start);
   })();
 })();

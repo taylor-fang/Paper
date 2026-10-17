@@ -11,6 +11,10 @@
 //
 // File › New Paper (⌘N) opens a new window with a new paper; File › Show in Finder
 // reveals the paper in the front window. The side bar's pages icon lists them all.
+//
+// Any .html or .md file can be opened from Finder (Open With › Paper) and is edited where it
+// is: a markdown file is saved back as markdown; an HTML file keeps its <head> and styles and
+// only the writing inside <body> is replaced. Each is backed up to .history first, as usual.
 
 import Cocoa
 import WebKit
@@ -29,11 +33,45 @@ enum Store {
     static func isPaperName(_ name: String) -> Bool {
         name.range(of: "^paper-[a-z0-9]+$", options: .regularExpression) != nil
     }
-    static func isPage(_ name: String) -> Bool { name == "page" || isPaperName(name) }
+    static func isFileName(_ name: String) -> Bool {
+        name.range(of: "^file-[a-z0-9]+$", options: .regularExpression) != nil
+    }
+    static func isPage(_ name: String) -> Bool { name == "page" || isPaperName(name) || isFileName(name) }
 
     static func url(_ name: String) -> URL? {
         if isPaperName(name) { return dataDir.appendingPathComponent("papers").appendingPathComponent(name + ".html") }
+        if isFileName(name) { return opened()[name].map { URL(fileURLWithPath: $0) } }
         return named[name].map { dataDir.appendingPathComponent($0) }
+    }
+
+    // files opened from Finder, by the name the page knows them by
+    static let openedURL = dataDir.appendingPathComponent(".opened.json")
+    static func opened() -> [String: String] {
+        guard let data = try? Data(contentsOf: openedURL), let map = try? JSONSerialization.jsonObject(with: data) as? [String: String] else { return [:] }
+        return map
+    }
+    static func name(for file: URL) -> String {
+        let path = file.standardizedFileURL.path
+        if path == dataDir.appendingPathComponent("page.html").path { return "page" }
+        let base = file.deletingPathExtension().lastPathComponent
+        if file.deletingLastPathComponent().standardizedFileURL.path == dataDir.appendingPathComponent("papers").path, isPaperName(base) { return base }
+        var map = opened()
+        if let known = map.first(where: { $0.value == path })?.key { return known }
+        let name = "file-" + String(Int(Date().timeIntervalSince1970 * 1000), radix: 36)
+        map[name] = path
+        if let data = try? JSONSerialization.data(withJSONObject: map, options: [.prettyPrinted, .sortedKeys]) {
+            try? FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
+            try? data.write(to: openedURL)
+        }
+        return name
+    }
+    static func isMarkdown(_ u: URL) -> Bool { ["md", "markdown", "mdown", "txt"].contains(u.pathExtension.lowercased()) }
+
+    // the writing inside an HTML file that isn't one of Paper's own: what's in its <body>
+    static let bodyPattern = try! NSRegularExpression(pattern: "(<body[^>]*>)([\\s\\S]*)(</body>)", options: .caseInsensitive)
+    static func bodyRange(_ html: String) -> (inner: NSRange, whole: NSRange)? {
+        guard let m = bodyPattern.firstMatch(in: html, range: NSRange(location: 0, length: (html as NSString).length)) else { return nil }
+        return (m.range(at: 2), m.range)
     }
 
     // pages are saved as complete HTML documents, so they open on their own
@@ -57,6 +95,12 @@ enum Store {
 
     static func read(_ name: String) -> String {
         guard let u = url(name), let text = try? String(contentsOf: u, encoding: .utf8) else { return "" }
+        if isFileName(name) {
+            if isMarkdown(u) { return "<!--paper:md-->" + text } // the page turns it into writing
+            if text.contains(start) { return unwrap(text) }
+            if let b = bodyRange(text) { return (text as NSString).substring(with: b.inner).trimmingCharacters(in: .whitespacesAndNewlines) }
+            return text
+        }
         return isPage(name) ? unwrap(text) : text
     }
 
@@ -84,11 +128,23 @@ enum Store {
 
     static func save(_ name: String, _ text: String) -> Bool {
         guard let u = url(name) else { return false }
+        if isFileName(name) {
+            if isMarkdown(u) { return true } // markdown files are saved as markdown, below
+            let old = (try? String(contentsOf: u, encoding: .utf8)) ?? ""
+            if let a = old.range(of: start), let b = old.range(of: end, options: .backwards), a.upperBound <= b.lowerBound {
+                return write(u, old.replacingCharacters(in: a.upperBound..<b.lowerBound, with: "\n" + text + "\n"))
+            }
+            if let b = bodyRange(old) {
+                return write(u, (old as NSString).replacingCharacters(in: b.inner, with: "\n" + text + "\n"))
+            }
+            return write(u, text)
+        }
         return write(u, isPage(name) ? wrap(text) : text)
     }
 
     static func saveMarkdown(_ name: String, _ text: String) -> Bool {
         guard isPage(name), let u = url(name) else { return false }
+        if isFileName(name) { return isMarkdown(u) ? write(u, text) : true } // no .md beside someone else's HTML
         return write(u.deletingPathExtension().appendingPathExtension("md"), text, keepHistory: false)
     }
 
@@ -116,10 +172,21 @@ enum Store {
         if let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) {
             names += files.filter { $0.hasSuffix(".html") }.map { String($0.dropLast(5)) }.filter(isPaperName)
         }
+        names += opened().keys.sorted()
         return names.compactMap { name in
             guard let u = url(name), let text = try? String(contentsOf: u, encoding: .utf8) else { return nil }
             let modified = (try? FileManager.default.attributesOfItem(atPath: u.path)[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-            return ["name": name, "first": firstLine(unwrap(text)), "modified": modified * 1000]
+            let first: String
+            if isFileName(name) && isMarkdown(u) {
+                // markdown: its lines, without the marks
+                first = String(text.components(separatedBy: .newlines).map {
+                    $0.replacingOccurrences(of: "^\\s*(#{1,6}\\s+|>\\s?|[-*+]\\s+|\\d+[.)]\\s+)", with: "", options: .regularExpression)
+                      .replacingOccurrences(of: "[*_~`]", with: "", options: .regularExpression)
+                }.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines).prefix(600))
+            } else {
+                first = firstLine(read(name))
+            }
+            return ["name": name, "first": first, "modified": modified * 1000]
         }
     }
 
@@ -184,6 +251,8 @@ final class PaperWindow: NSObject, NSWindowDelegate {
         strip.autoresizingMask = [.width, .minYMargin]
         view.addSubview(strip)
         window.contentView = view
+        window.acceptsMouseMovedEvents = true
+        window.initialFirstResponder = web
         super.init()
 
         web.navigationDelegate = handler
@@ -200,6 +269,10 @@ final class PaperWindow: NSObject, NSWindowDelegate {
         }
     }
 
+    func windowDidBecomeKey(_ notification: Notification) {
+        if window.firstResponder !== web { window.makeFirstResponder(web) }
+    }
+
     func windowWillClose(_ notification: Notification) {
         web.evaluateJavaScript("window.dispatchEvent(new Event('pagehide'))", completionHandler: nil)
         (NSApp.delegate as? AppDelegate)?.closed(self)
@@ -212,11 +285,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
-        let first = open(paper: nil)
-        first.window.center()
-        first.window.setFrameAutosaveName("Paper")
         NSApp.activate(ignoringOtherApps: true)
         startLocalServer()
+        // opened by double-clicking a file, the file's window is the first; otherwise the last paper
+        DispatchQueue.main.async {
+            guard self.windows.isEmpty else { return }
+            let first = self.open(paper: nil)
+            first.window.center()
+            first.window.setFrameAutosaveName("Paper")
+        }
+    }
+
+    // Finder: Open With › Paper, or a file dropped on the Dock icon
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for u in urls where ["html", "htm", "md", "markdown", "mdown", "txt"].contains(u.pathExtension.lowercased()) {
+            let name = Store.name(for: u)
+            if let already = windows.first(where: { $0.paper == name }) {
+                already.window.makeKeyAndOrderFront(nil)
+            } else {
+                let pw = open(paper: name)
+                if windows.count == 1 { pw.window.center(); pw.window.setFrameAutosaveName("Paper") }
+            }
+        }
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @discardableResult
@@ -228,6 +319,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         windows.append(pw)
         pw.window.makeKeyAndOrderFront(nil)
+        pw.window.makeFirstResponder(pw.web)
         return pw
     }
 
