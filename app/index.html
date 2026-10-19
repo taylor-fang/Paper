@@ -35,7 +35,7 @@
     font-family: var(--font);
     -webkit-font-smoothing: antialiased;
   }
-  ::selection { background: rgba(160, 176, 140, .22); } /* pale sage */
+  ::selection { background: rgba(150, 168, 128, .3); } /* sage */
 
   /* ---------- paper: the whole screen ---------- */
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh 8vw 50vh; }
@@ -90,10 +90,9 @@
   #linkbox {
     position: absolute; z-index: 4; display: none;
     width: 300px; max-width: calc(100vw - 32px);
-    padding: 6px 10px; border: 1px solid var(--faint); border-radius: 3px; outline: none;
-    background: var(--paper); color: var(--ink);
+    padding: 6px 10px; border: 1px solid var(--faint); border-radius: 0; outline: none;
+    background: var(--paper); color: var(--ink); caret-color: transparent;
     font: 14px/1.4 var(--font);
-    box-shadow: 0 4px 16px rgba(40, 30, 10, .08);
   }
   #linkbox.show { display: block; }
   #linkbox::placeholder { color: var(--soft); }
@@ -101,16 +100,16 @@
   /* ⌘F: find on the page itself (not the side bar); every match softly marked, the current one a little more */
   #find {
     position: fixed; z-index: 4; top: 16px; right: 64px; display: none; align-items: center; gap: 10px;
-    padding: 5px 10px; border: 1px solid var(--faint); border-radius: 3px;
+    padding: 5px 10px; border: 1px solid var(--faint); border-radius: 0;
     background: var(--paper);
   }
   #find.show { display: flex; }
-  #find input { width: 190px; border: 0; outline: none; background: none; color: var(--ink); font: 14px/1.4 var(--font); padding: 0; }
+  #find input { width: 190px; border: 0; outline: none; background: none; color: var(--ink); caret-color: transparent; font: 14px/1.4 var(--font); padding: 0; }
   #find span { font: 13px var(--font); color: #a8987f; white-space: nowrap; }
   /* the matches: soft marks laid over the words (multiplied, so the ink stays black), the current one stronger */
   #marks { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; mix-blend-mode: multiply; }
-  #marks i { position: absolute; background: rgba(160, 176, 140, .15); border-radius: 1px; }
-  #marks i.now { background: rgba(140, 162, 115, .32); }
+  #marks i { position: absolute; background: rgba(150, 168, 128, .2); }
+  #marks i.now { background: rgba(130, 155, 105, .4); }
 
   /* the Mac app: the top of the window is for dragging it, not for writing */
   #titlebar { display: none; position: fixed; z-index: 5; top: 0; left: 0; right: 60px; height: 28px; cursor: default; }
@@ -1005,13 +1004,15 @@
   let lastCaretTop = '', caretJumped = false;
   for (const el of [ed, notes, list]) el.addEventListener('mousedown', () => { caretJumped = true; });
   // the page, the notes, or a to-do: wherever you're typing
-  const typingIn = (el) => el === ed || el === notes || el === list;
+  const typingIn = (el) => el === ed || el === notes || el === list || isBox(el);
+  const isBox = (el) => el?.id === 'linkbox' || el?.parentElement?.id === 'find'; // the link and find boxes
 
   function drawCaret() {
     cancelAnimationFrame(caretFrame);
     caretFrame = requestAnimationFrame(() => {
       const sel = getSelection();
       const field = document.activeElement;
+      if (isBox(field) && document.hasFocus()) return boxCaret(field);
       if (!typingIn(field) || !document.hasFocus() || !sel.rangeCount || !sel.isCollapsed || !field.contains(sel.anchorNode)) {
         caretMark.hidden = true;
         return;
@@ -1086,6 +1087,37 @@
     if (/^(Arrow|Home$|End$|Page)/.test(e.key) && typingIn(document.activeElement)) caretJumped = true;
   }, true);
   document.addEventListener('selectionchange', () => { if (performance.now() - measuredAt > 60) drawCaret(); });
+
+  // in a one-line box: measure the words before the cursor to find where it stands
+  function boxCaret(input) {
+    if (input.selectionStart !== input.selectionEnd) { caretMark.hidden = true; return; }
+    const cs = getComputedStyle(input), fs = parseFloat(cs.fontSize);
+    const m = typeMetrics(cs, fs);
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${cs.fontStyle} ${cs.fontWeight} ${fs}px ${cs.fontFamily}`;
+    const box = input.getBoundingClientRect();
+    const left = box.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft) + c.measureText(input.value.slice(0, input.selectionStart)).width - input.scrollLeft;
+    const inner = box.height - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth) - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const baseline = box.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop) + (inner - (m.boxAscent + m.boxDescent)) / 2 + m.boxAscent;
+    const letters = m.ascender + m.descender;
+    caretMark.style.position = 'fixed';
+    caretMark.style.left = Math.round(Math.min(left, box.right - parseFloat(cs.paddingRight))) + 'px';
+    caretMark.style.top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1) + 'px';
+    caretMark.style.height = Math.round(letters * 1.2) + 'px';
+    const where = caretMark.style.left + caretMark.style.top;
+    if (caretJumped || where !== lastCaretTop || caretMark.hidden) {
+      caretMark.style.animation = 'none';
+      void caretMark.offsetWidth;
+      caretMark.style.animation = '';
+    }
+    caretJumped = false;
+    lastCaretTop = where;
+    caretMark.hidden = false;
+  }
+  for (const box of [$('linkbox'), document.querySelector('#find input')]) {
+    for (const ev of ['input', 'keyup', 'mouseup', 'select', 'focus', 'blur', 'scroll']) box.addEventListener(ev, drawCaret);
+    box.addEventListener('mousedown', () => { caretJumped = true; });
+  }
   notes.addEventListener('input', drawCaret);
   list.addEventListener('input', drawCaret);
   document.addEventListener('focusin', drawCaret);
