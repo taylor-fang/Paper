@@ -35,7 +35,7 @@
     font-family: var(--font);
     -webkit-font-smoothing: antialiased;
   }
-  ::selection { background: rgba(150, 168, 128, .3); } /* sage */
+  ::selection { background: rgba(112, 160, 70, .46); } /* green, as mixed */
 
   /* ---------- paper: the whole screen ---------- */
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh 8vw 50vh; }
@@ -71,6 +71,7 @@
     font-size: var(--size);
     line-height: var(--lh);
     caret-color: transparent; /* drawn by #caret instead, so it can breathe */
+    white-space: pre-wrap; /* so a space typed at the end of a line is a real space, never a non-breaking one that starts the next line a little in */
     min-height: 50vh;
     overflow-wrap: break-word;
   }
@@ -104,12 +105,32 @@
     background: var(--paper);
   }
   #find.show { display: flex; }
+  /* the tiny pages' right-click menu: two words, square, no shadow */
+  #pagemenu { position: fixed; z-index: 6; display: none; min-width: 110px; padding: 4px 0; border: 1px solid var(--faint); background: var(--paper); font: 14px/1.4 var(--font); }
+  #pagemenu.show { display: block; }
+  #pagemenu div { padding: 3px 12px; cursor: default; }
+  #pagemenu div:hover { background: rgba(112, 160, 70, .24); }
   #find input { width: 190px; border: 0; outline: none; background: none; color: var(--ink); caret-color: transparent; font: 14px/1.4 var(--font); padding: 0; }
   #find span { font: 13px var(--font); color: #a8987f; white-space: nowrap; }
   /* the matches: soft marks laid over the words (multiplied, so the ink stays black), the current one stronger */
   #marks { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; mix-blend-mode: multiply; }
-  #marks i { position: absolute; background: rgba(150, 168, 128, .2); }
-  #marks i.now { background: rgba(130, 155, 105, .4); }
+  #marks i { position: absolute; background: rgba(112, 160, 70, .24); }
+  #marks i.now { background: rgba(112, 160, 70, .5); }
+
+  /* footnotes (⌘⌥F): a small raised number in the writing; the note itself lighter and smaller in the
+     right margin, level with its line. The number is real text, so a selection runs through it;
+     the word count and find leave it out */
+  sup.fn { font-size: .62em; line-height: 0; vertical-align: .55em; margin-left: .06em; color: var(--fn); cursor: pointer; } /* selectable, so a selection runs straight through it */
+  sup.fn.lit { color: #000; }
+  sup.fn.picked { background: rgba(112, 160, 70, .46); }
+  sup.fn.picked::selection { background: transparent; }
+  #fnotes { position: absolute; left: 0; top: 0; z-index: 1; }
+  .fnote { position: absolute; font: 13px/1.35 var(--font); color: var(--fn); transition: color .15s; }
+  .fnote .n { margin-right: .9em; user-select: none; -webkit-user-select: none; }
+  .fnote .body { outline: none; caret-color: transparent; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fnote .body:empty::before { content: "Write a note"; color: var(--faint); }
+  .fnote.lit { color: #4a4540; }
+  :root { --fn: #978972; } /* the light brown, a little darker */
 
   /* the Mac app: the top of the window is for dragging it, not for writing */
   #titlebar { display: none; position: fixed; z-index: 5; top: 0; left: 0; right: 60px; height: 28px; cursor: default; }
@@ -143,7 +164,7 @@
   #notesWrap { flex: 1 1 50%; }
   #todoWrap { flex: 1 1 40%; margin-top: 24px; }
   #notes {
-    flex: 1; outline: none; overflow-y: auto; cursor: text; caret-color: transparent;
+    flex: 1; outline: none; overflow-y: auto; cursor: text; caret-color: transparent; white-space: pre-wrap;
     font: calc(18.5px + var(--adj))/1.35 var(--font);
     color: rgba(0, 0, 0, .9);
     padding-top: .08em; /* the first line starts where it did before the lines were tightened */
@@ -271,6 +292,7 @@
   <div id="caret" hidden></div>
   <input id="linkbox" type="text" placeholder="Paste a link, then enter" spellcheck="false" autocomplete="off">
   <div id="marks" aria-hidden="true"></div>
+  <div id="fnotes"></div>
   <div id="titlebar" aria-hidden="true"></div>
   <div id="find"><input type="text" spellcheck="false" autocomplete="off" autocorrect="off" writingsuggestions="false"><span></span></div>
 
@@ -314,6 +336,19 @@
         body: text,
         keepalive: leaving && text.length < 60000,
       }).catch(() => {});
+    },
+    // only for a paper with nothing on it; Paper's own first page and files opened from Finder are never removed
+    remove(name) {
+      if (!/^paper-[a-z0-9]+$/.test(name)) return;
+      try { localStorage.removeItem('paper.file.' + name); localStorage.removeItem('paper.mtime.' + name); } catch {}
+      if (native) return void ask({ op: 'delete', name });
+      if (onServer) fetch('/api/files/' + name, { method: 'DELETE', headers: { 'x-paper': '1' } }).catch(() => {});
+    },
+    async trash(name) {
+      if (!/^(paper-|file-)[a-z0-9]+$/.test(name)) return;
+      try { localStorage.removeItem('paper.file.' + name); localStorage.removeItem('paper.mtime.' + name); } catch {}
+      if (native) return ask({ op: 'trash', name });
+      if (onServer) { try { await fetch('/api/files/' + name + '?trash=1', { method: 'DELETE', headers: { 'x-paper': '1' } }); } catch {} }
     },
     async list() {
       if (native) return (await ask({ op: 'list' })) || [];
@@ -534,6 +569,10 @@
   }
 
   function paginate() {
+    paginateSheets();
+    layoutNotes();
+  }
+  function paginateSheets() {
     if (s.paper !== 'sheet') {
       if (pages) { $('shims').innerHTML = ''; $('sheets').innerHTML = ''; $('page').style.minHeight = ''; pages = 0; geometry = ''; }
       return;
@@ -576,7 +615,8 @@
   function applySettings() {
     for (const k of ['font', 'paper']) root.dataset[k] = s[k];
     root.style.setProperty('--size', s.size * 4 / 3 + 'px'); // points to pixels
-    root.style.setProperty('--lh', s.spacing);
+    // line height on whole pixels, so a big selection is one solid block with no hairline gaps between lines
+    root.style.setProperty('--lh', Math.round(s.size * 4 / 3 * s.spacing) + 'px');
     paintOptions();
     requestAnimationFrame(() => { fitBoxes(); alignArrows(); });
   }
@@ -607,6 +647,13 @@
   /* ---------- markdown ---------- */
   // markdown to the page: paragraphs, lists (nested by indent), links, bold, italic, underline
   // and strikethrough; headings and quotes become plain paragraphs, headings in bold
+  // one paragraph of markdown, as formatting (no surrounding <p>)
+  function fromMarkdownInline(md) {
+    const html = fromMarkdown(md.replace(/\n+/g, ' '));
+    return html.replace(/^<p>([\s\S]*)<\/p>$/, '$1');
+  }
+  // plain text that's really markdown: bold, italic, links, headings, lists or footnotes in markdown's marks
+  const looksLikeMarkdown = (t) => /(\*\*|__)\S[\s\S]*?\S?\1|(^|[\s(])[*_]\S[^*_\n]*?\S?[*_](?=[\s.,;:!?)]|$)|\[[^\]]+\]\([^)\s]+\)|\[\^[^\]]+\]|^#{1,6}\s|^\s*[-*+]\s+\S|^\s*\d+\.\s+\S|~~\S/m.test(t);
   function fromMarkdown(md) {
     const escHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     function inline(t) {
@@ -614,6 +661,7 @@
       const hold = (html) => `\u0000${held.push(html) - 1}\u0000`;
       t = t.replace(/\\([\\`*_[\]#>~-])/g, (_, c) => hold(escHtml(c)));               // escaped marks stay as they are
       t = t.replace(/`([^`]+)`/g, (_, c) => hold(escHtml(c)));                          // code: just its words
+      t = t.replace(/\[\^([^\]]+)\]/g, (_, id) => hold(`<sup class="fn" contenteditable="false" data-note="${(defs[id] != null ? inline(defs[id]) : '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></sup>`));
       t = t.replace(/<u>([\s\S]*?)<\/u>/g, (_, c) => hold('<u>' + inline(c) + '</u>'));
       t = t.replace(/\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, txt, href) =>
         hold(`<a href="${escHtml(href).replace(/"/g, '&quot;')}">${inline(txt)}</a>`));
@@ -624,7 +672,9 @@
       return t.replace(/\u0000(\d+)\u0000/g, (_, k) => held[+k]);
     }
     const out = [];
-    const lines = md.replace(/\r\n?/g, '\n').split('\n');
+    const defs = {};
+    md = md.replace(/\r\n?/g, '\n').replace(/^\[\^([^\]]+)\]:\s*(.*)$/gm, (_, id, t) => { defs[id] = t; return ''; });
+    const lines = md.split('\n');
     let para = [];
     const flush = () => { if (para.length) out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; };
     for (let k = 0; k < lines.length; k++) {
@@ -664,11 +714,19 @@
       const m = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
       return m[2] ? m[1] + open + m[2] + close + m[3] : text;
     };
+    const notesOut = [];
     function inline(node) {
       let out = '';
       for (const n of node.childNodes) {
         if (n.nodeType === 3) { out += esc(n.data); continue; }
         if (n.nodeType !== 1) continue;
+        if (n.nodeName === 'SUP' && n.classList.contains('fn')) {
+          const box = document.createElement('div');
+          box.innerHTML = noteHtml(n.dataset.note || '');
+          notesOut.push(inline(box).replace(/\n+/g, ' '));
+          out += `[^${notesOut.length}]`;
+          continue;
+        }
         switch (n.nodeName) {
           case 'B': case 'STRONG': out += wrap('**', inline(n)); break;
           case 'I': case 'EM': out += wrap('*', inline(n)); break;
@@ -701,6 +759,7 @@
       const text = inline(b).trim().replace(/\n/g, '  \n');
       if (text) blocks.push(text.replace(/^(#|>|[-+] )/, '\\$1').replace(/^(\d+)\. /, '$1\\. '));
     }
+    if (notesOut.length) blocks.push(notesOut.map((t, k) => `[^${k + 1}]: ${t}`).join('\n'));
     return blocks.join('\n\n') + '\n';
   }
 
@@ -735,12 +794,13 @@
   const words = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'word' }) : null;
   function recount() {
     const text = ed.innerText;
-    const n = words ? [...words.segment(text)].filter((w) => w.isWordLike).length : (text.match(/\S+/g) || []).length;
+    const all = words ? [...words.segment(text)].filter((w) => w.isWordLike).length : (text.match(/\S+/g) || []).length;
+    const n = Math.max(0, all - ed.querySelectorAll('sup.fn').length); // footnote numbers aren't words
     $('count').textContent = n === 1 ? '1 word' : n + ' words';
   }
 
   function retitle() {
-    const first = Array.from((ed.querySelector('p, li')?.textContent || '').trim()).slice(0, 48).join(''); // whole characters, never half an emoji
+    const first = Array.from(wordsOf(ed.querySelector('p, li') || ed).trim()).slice(0, 48).join(''); // whole characters, never half an emoji
     document.title = first || 'Paper';
     if (native) ask({ op: 'title', text: document.title });
   }
@@ -752,8 +812,10 @@
     files.put(name, '<p><br></p>');
     await openDoc(name);
   }
+  // a block's words, without footnote numbers
+  const wordsOf = (b) => { const c = b.cloneNode(true); c.querySelectorAll('sup.fn').forEach((x) => x.remove()); return c.textContent; };
   // a paper's writing from the top, a line per paragraph, its blank lines kept (but none trailing at the end)
-  const previewOf = (root) => [...root.querySelectorAll('p, li')].map((b) => b.textContent.replace(/\s+/g, ' ').trim()).join('\n').replace(/\s+$/, '').slice(0, 600);
+  const previewOf = (root) => [...root.querySelectorAll('p, li')].map((b) => wordsOf(b).replace(/\s+/g, ' ').trim()).join('\n').replace(/\s+$/, '').slice(0, 600);
 
   // as much as fits on the tiny page, with room for the tails of g and y on the last line,
   // cut at a word with … where it stops
@@ -792,6 +854,9 @@
     const here = papers.find((p) => p.name === docName);
     if (here) here.first = previewOf(ed);
     else papers.push({ name: docName, first: previewOf(ed), modified: Date.now() });
+    // blank papers you aren't on are tidied away
+    for (const p of papers.filter((p) => p.name !== docName && p.name.startsWith('paper-') && !p.first.trim())) files.remove(p.name);
+    papers.splice(0, papers.length, ...papers.filter((p) => p.name === docName || !p.name.startsWith('paper-') || p.first.trim()));
     papers.sort((a, b) => b.modified - a.modified);
     grid.innerHTML = '';
     const plus = document.createElement('div');
@@ -808,17 +873,53 @@
       t.textContent = blank ? 'untitled' : p.first;
       el.append(t);
       el.onclick = async () => { if (p.name !== docName) await openDoc(p.name); showPapers(false); };
+      el.oncontextmenu = (e) => { e.preventDefault(); pageMenu(e, p); };
       grid.append(el);
     }
     grid.append(plus);
     grid.querySelectorAll('.pg:not(.new) .t:not(.blank)').forEach(fitPreview);
   }
 
+  // right-click on a tiny page: Duplicate, or Delete (to the Trash, so it can be got back)
+  const menu = document.createElement('div');
+  menu.id = 'pagemenu';
+  document.body.append(menu);
+  function pageMenu(e, p) {
+    menu.innerHTML = '';
+    const item = (label, fn) => { const b = document.createElement('div'); b.textContent = label; b.onclick = async (ev) => { ev.stopPropagation(); closeMenu(); await fn(); }; menu.append(b); };
+    item('Duplicate', async () => {
+      let body = await files.get(p.name);
+      if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15));
+      if (p.name === docName) { saveDoc.flush(); body = ed.innerHTML; }
+      const name = newName();
+      files.put(name, body || '<p><br></p>');
+      setTimeout(() => showPapers(true), 150);
+    });
+    if (p.name !== 'page') item('Delete', async () => {
+      await files.trash(p.name);
+      if (p.name === docName) {
+        const rest = (await files.list()).filter((x) => x.name !== p.name).sort((a, b) => b.modified - a.modified);
+        await openDoc(rest[0]?.name || 'page');
+      }
+      setTimeout(() => showPapers(true), 150);
+    });
+    menu.style.left = Math.min(e.clientX, innerWidth - 130) + 'px';
+    menu.style.top = Math.min(e.clientY, innerHeight - 70) + 'px';
+    menu.classList.add('show');
+  }
+  const closeMenu = () => menu.classList.remove('show');
+  document.addEventListener('mousedown', (e) => { if (!menu.contains(e.target)) closeMenu(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); }, true);
+
   // on the website, a first visit opens on a short note; it's ordinary text, delete it and it's gone
   const STARTER = '<p>A paper for writing.</p><p>Mouse over the right of the screen for visuals.</p>';
 
+  // nothing written: no words and no list items
+  const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn');
+
   async function openDoc(name) {
     saveDoc.flush();
+    if (docName && docName !== name && docName.startsWith('paper-') && blankPage()) files.remove(docName); // a blank paper you've left
     docName = name;
     s.current = name;
     local.set('settings', JSON.stringify(s));
@@ -827,10 +928,24 @@
     let body = await files.get(name);
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     ed.innerHTML = body.trim() || (firstVisit ? STARTER : '<p><br></p>');
+    plainSpaces(ed);
     retitle();
     recount();
     paginate();
     caretToEnd();
+  }
+
+  // spaces as plain spaces: the non-breaking ones a browser leaves behind become ordinary, and
+  // line breaks from an HTML file's own layout become single spaces (the page keeps spaces as typed)
+  function plainSpaces(root) {
+    const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n; (n = walk.nextNode());) {
+      const t = n.data.replace(/\u00a0/g, ' ').replace(/[ \t]*[\r\n]+[ \t]*/g, ' ');
+      if (t !== n.data) n.data = t;
+    }
+    // text with nothing in it but layout, between paragraphs or list items, goes
+    for (const n of [...root.childNodes]) if (n.nodeType === 3 && !n.data.trim()) n.remove();
+    root.querySelectorAll('ul, ol').forEach((l) => [...l.childNodes].forEach((n) => { if (n.nodeType === 3 && !n.data.trim()) n.remove(); }));
   }
 
   function placeCaret(fn) {
@@ -884,7 +999,17 @@
     const text = e.clipboardData.getData('text/plain');
     const html = e.clipboardData.getData('text/html');
     const url = text.trim();
-    const isUrl = /^(https?:\/\/|mailto:)\S+$/.test(url) || /^www\.\S+\.\S+$/.test(url);
+    const isUrl = isUrlText(url);
+    if (!html && !isUrlText(url) && looksLikeMarkdown(text)) { // markdown pasted as plain text: take its formatting
+      const blocks = /\n\s*\n|^\s*([-*+]|\d+\.)\s|^#{1,6}\s|^\[\^/m.test(text);
+      // whole paragraphs or lists pasted at the end of a line start on a new line, rather than joining it
+      const c = caretContext();
+      if (blocks && c && c.before.trim() && getSelection().isCollapsed) document.execCommand('insertParagraph');
+      document.execCommand('insertHTML', false, blocks ? fromMarkdown(text) : fromMarkdownInline(text));
+      tidyLinks();
+      layoutNotes();
+      return;
+    }
     if (isUrl && !getSelection().isCollapsed) document.execCommand('createLink', false, toHref(url));
     else if (isUrl) { // an address pasted on its own becomes a link, so ⌘K shows it in the link box
       const a = document.createElement('a');
@@ -894,11 +1019,20 @@
       tidyLinks();
     }
     else if (html) {
-      document.execCommand('insertHTML', false, cleanPaste(html));
+      const clean = document.createElement('div');
+      clean.innerHTML = cleanPaste(html);
+      plainSpaces(clean);
+      // one paragraph's worth goes into the line where the cursor is, not onto a new line
+      const one = clean.children.length === 1 && clean.firstElementChild.nodeName === 'P' && !clean.firstElementChild.previousSibling && !clean.firstElementChild.nextSibling;
+      document.execCommand('insertHTML', false, one ? clean.firstElementChild.innerHTML : clean.innerHTML);
+      ed.querySelectorAll('sup.fn').forEach((x) => x.setAttribute('contenteditable', 'false'));
+      layoutNotes();
       ed.querySelectorAll('[style]').forEach((el) => el.removeAttribute('style'));
       ed.querySelectorAll('span:not([class])').forEach((el) => el.replaceWith(...el.childNodes));
     } else document.execCommand('insertText', false, text);
   });
+
+  function isUrlText(t) { return /^(https?:\/\/|mailto:)\S+$/.test(t) || /^www\.\S+\.\S+$/.test(t); }
 
   // reduce pasted HTML to what the page knows: paragraphs, lists, links, and b / i / u / s.
   // fonts, sizes and colours are dropped so it takes on the page's own look
@@ -915,6 +1049,14 @@
       if (!el.isConnected) continue;
       const tag = el.nodeName;
       if (DROP.test(tag)) { el.remove(); continue; }
+      if (tag === 'SUP' && el.classList.contains('fn')) { // a footnote copied from Paper: it stays a footnote, with a fresh id
+        const fresh = doc.createElement('sup');
+        fresh.className = 'fn';
+        fresh.setAttribute('contenteditable', 'false');
+        fresh.setAttribute('data-note', el.getAttribute('data-note') || '');
+        el.replaceWith(fresh);
+        continue;
+      }
       const style = el.getAttribute('style') || '';
       const weight = (style.match(/font-weight\s*:\s*(\w+)/i) || [])[1];
       const marks = [];
@@ -978,7 +1120,7 @@
     // collapse source-code whitespace, and drop empty marks
     const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
     for (let t = walker.nextNode(); t; t = walker.nextNode()) t.data = t.data.replace(/[ \t\r\n]+/g, ' ');
-    for (const el of [...body.querySelectorAll('b, i, u, s')]) if (!el.textContent) el.remove();
+    for (const el of [...body.querySelectorAll('b, i, u, s')]) if (!el.textContent && !el.querySelector('sup')) el.remove();
     return body.innerHTML;
   }
 
@@ -1004,7 +1146,8 @@
   let lastCaretTop = '', caretJumped = false;
   for (const el of [ed, notes, list]) el.addEventListener('mousedown', () => { caretJumped = true; });
   // the page, the notes, or a to-do: wherever you're typing
-  const typingIn = (el) => el === ed || el === notes || el === list || isBox(el);
+  const typingIn = (el) => el === ed || el === notes || el === list || isBox(el) || isFootnote(el);
+  const isFootnote = (el) => !!el?.classList?.contains('body') && !!el.closest?.('#fnotes');
   const isBox = (el) => el?.id === 'linkbox' || el?.parentElement?.id === 'find'; // the link and find boxes
 
   function drawCaret() {
@@ -1027,7 +1170,7 @@
       const rects = r.getClientRects();
       const rect = rects[rects.length - 1];
       let left, baseline;
-      if ((!rect || !rect.height) && field !== ed && field !== notes) {
+      if ((!rect || !rect.height) && (field === list || isFootnote(field))) {
         // a fresh line inside a to-do has nothing to measure: measure a mark put there for a moment
         const sc = r.startContainer, so = r.startOffset;
         const mk = document.createElement('span');
@@ -1055,7 +1198,7 @@
       const letters = m.ascender + m.descender;
       const h = Math.round(letters * 1.2); // 10% past the letters at the top and at the bottom
       // the side bar stays put while the page scrolls, so its cursor does too
-      const fixed = field !== ed;
+      const fixed = field === notes || field === list; // the side bar stays put; the page and its footnotes scroll
       const sx = fixed ? 0 : scrollX, sy = fixed ? 0 : scrollY;
       caretMark.style.position = fixed ? 'fixed' : 'absolute';
       let top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1), height = h;
@@ -1700,6 +1843,198 @@
     }
   });
 
+  /* ================= footnotes (⌘⌥F) ================= */
+  const fnLayer = $('fnotes');
+  const FN_GAP = 48, FN_WIDE = 220, FN_NARROWEST = 110; // margin notes: gap from the writing, widest, narrowest beside it
+  // number the references in order, give each its note in the margin, and drop notes whose reference is gone
+  function layoutNotes() {
+    const refs = [...ed.querySelectorAll('sup.fn')];
+    const kept = new Set();
+    refs.forEach((ref, k) => {
+      if (!ref.dataset.id) ref.dataset.id = 'f' + Math.random().toString(36).slice(2, 8);
+      ref.dataset.n = String(k + 1);
+      if (ref.textContent !== ref.dataset.n) ref.textContent = ref.dataset.n;
+      ref.contentEditable = 'false';
+      ref.title = ref.dataset.note || '';
+      kept.add(ref.dataset.id);
+      let note = fnLayer.querySelector(`[data-id="${ref.dataset.id}"]`);
+      if (!note) note = makeNote(ref);
+      note.querySelector('.n').textContent = (k + 1) + '.';
+      const body = note.querySelector('.body');
+      const html = noteHtml(ref.dataset.note || '');
+      if (document.activeElement !== body && body.innerHTML !== html) body.innerHTML = html;
+    });
+    for (const note of [...fnLayer.children]) if (!kept.has(note.dataset.id)) note.remove();
+    placeNotes(refs);
+  }
+  function makeNote(ref) {
+    const id = ref.dataset.id;
+    const note = document.createElement('div');
+    note.className = 'fnote';
+    note.dataset.id = id;
+    note.innerHTML = '<span class="n"></span><span class="body"></span>';
+    const body = note.querySelector('.body');
+    body.contentEditable = 'true'; // ⌘B, ⌘I and ⌘U work in notes too
+    body.spellcheck = true;
+    body.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = e.clipboardData.getData('text/plain');
+      if (looksLikeMarkdown(text)) document.execCommand('insertHTML', false, fromMarkdownInline(text.replace(/\s*\n\s*/g, ' ')));
+      else document.execCommand('insertText', false, text.replace(/\s*\n\s*/g, ' '));
+    });
+    body.setAttribute('autocorrect', 'off');
+    body.setAttribute('writingsuggestions', 'false');
+    const refOf = () => ed.querySelector(`sup.fn[data-id="${id}"]`);
+    body.oninput = () => {
+      const r = refOf();
+      if (r) { r.dataset.note = noteHtml(body.innerHTML); r.title = body.textContent; }
+      placeNotes();
+      drawCaret();
+      saveDoc();
+    };
+    body.onkeydown = (e) => {
+      // enter or escape: back to the writing, just after the number
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); backToText(id); }
+      if (e.key === 'Enter' && e.shiftKey) e.preventDefault(); // a note is one paragraph
+    };
+    // a footnote left with nothing written goes away
+    body.onblur = () => setTimeout(() => {
+      if (document.activeElement === body || body.textContent.trim()) return;
+      refOf()?.remove();
+      layoutNotes();
+      recount();
+      saveDoc();
+    }, 0);
+    note.onmouseenter = () => lightNote(id, true);
+    note.onmouseleave = () => lightNote(id, false);
+    fnLayer.append(note);
+    return note;
+  }
+  // a note's words as the page keeps them: bold, italic, underline, strikethrough and links only.
+  // Older notes were plain text, and some came from markdown with *marks*; both become formatting
+  function noteHtml(raw) {
+    const box = document.createElement('div');
+    if (!/<[a-z]/i.test(raw)) box.innerHTML = fromMarkdownInline(raw);
+    else box.innerHTML = raw;
+    for (const el of [...box.querySelectorAll('*')]) {
+      if (!el.isConnected) continue;
+      const tag = el.nodeName === 'STRONG' ? 'B' : el.nodeName === 'EM' ? 'I' : el.nodeName;
+      if (!/^(B|I|U|S|A)$/.test(tag)) { el.replaceWith(...el.childNodes); continue; }
+      if (tag !== el.nodeName) { const n = document.createElement(tag); n.append(...el.childNodes); el.replaceWith(n); continue; }
+      for (const a of [...el.attributes]) if (!(tag === 'A' && a.name === 'href')) el.removeAttribute(a.name);
+    }
+    return box.innerHTML.replace(/<br>$/, '');
+  }
+  function lightNote(id, on) {
+    ed.querySelector(`sup.fn[data-id="${id}"]`)?.classList.toggle('lit', on);
+    fnLayer.querySelector(`[data-id="${id}"]`)?.classList.toggle('lit', on);
+  }
+  ed.addEventListener('mouseover', (e) => { const r = e.target.closest?.('sup.fn'); if (r) lightNote(r.dataset.id, true); });
+  ed.addEventListener('mouseout', (e) => { const r = e.target.closest?.('sup.fn'); if (r) lightNote(r.dataset.id, false); });
+  // clicking a number goes to its note
+  ed.addEventListener('mousedown', (e) => {
+    const r = e.target.closest?.('sup.fn');
+    if (!r) return;
+    e.preventDefault();
+    const body = fnLayer.querySelector(`[data-id="${r.dataset.id}"] .body`);
+    body?.focus();
+    if (body) placeCaret((x) => { x.selectNodeContents(body); x.collapse(false); });
+  });
+  function backToText(id) {
+    const r = ed.querySelector(`sup.fn[data-id="${id}"]`);
+    if (!r) return;
+    ed.focus({ preventScroll: true });
+    placeCaret((x) => { x.setStartAfter(r); x.collapse(true); });
+    caretJumped = true;
+    drawCaret();
+  }
+
+  // each note in the margin, level with the line its number is on, moved down if it would
+  // overlap the one above. The writing stays where it is; the notes take the room to its right,
+  // up to 220px, narrower as the window narrows, and under the writing when there's no room at all
+  function placeNotes(refs = [...ed.querySelectorAll('sup.fn')]) {
+    if (!refs.length) return;
+    const column = (s.paper === 'sheet' ? $('page') : $('lines')).getBoundingClientRect();
+    const left = column.right + FN_GAP;
+    const room = innerWidth - left - 56; // leave the right edge to the S
+    const width = Math.min(FN_WIDE, room);
+    const beside = width >= FN_NARROWEST;
+    const lh = parseFloat(getComputedStyle(ed).lineHeight) || 20;
+    const fs = parseFloat(getComputedStyle(ed).fontSize);
+    let floor = -Infinity;
+    for (const ref of refs) {
+      const note = fnLayer.querySelector(`[data-id="${ref.dataset.id}"]`);
+      if (!note) continue;
+      if (beside) {
+        const r = document.createRange();
+        r.setStartBefore(ref);
+        r.collapse(true);
+        const at = r.getClientRects()[0] || ref.getBoundingClientRect();
+        // the note's first line sits on the same baseline as the writing's
+        const y = Math.max(at.top + scrollY + (lh - fs) / 2 + fs * .8 - 13 * .95, floor);
+        note.style.cssText = `left:${left + scrollX}px;top:${y}px;width:${width}px`;
+        floor = y + note.offsetHeight + 10;
+      } else {
+        const text = $('lines').getBoundingClientRect();
+        const y = Math.max(ed.getBoundingClientRect().bottom + scrollY + 28, floor);
+        note.style.cssText = `left:${text.left + scrollX}px;top:${y}px;width:${text.width}px`;
+        floor = y + note.offsetHeight + 8;
+      }
+    }
+  }
+
+  // ⌘⌥F: a footnote where the cursor is, and straight into writing it
+  function addFootnote() {
+    const sel = getSelection();
+    if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return;
+    const r = sel.getRangeAt(0);
+    r.collapse(false);
+    const ref = document.createElement('sup');
+    ref.className = 'fn';
+    ref.contentEditable = 'false';
+    ref.dataset.id = 'f' + Math.random().toString(36).slice(2, 8);
+    ref.dataset.note = '';
+    r.insertNode(ref);
+    layoutNotes();
+    saveDoc();
+    const body = fnLayer.querySelector(`[data-id="${ref.dataset.id}"] .body`);
+    body.focus();
+    caretJumped = true;
+    drawCaret();
+  }
+
+  // a selection of nothing but one footnote number is drawn snug around the number
+  document.addEventListener('selectionchange', () => {
+    const sel = getSelection();
+    let only = null;
+    if (sel.rangeCount && !sel.isCollapsed && ed.contains(sel.anchorNode)) {
+      const r = sel.getRangeAt(0);
+      const refs = [...ed.querySelectorAll('sup.fn')].filter((x) => r.intersectsNode(x));
+      if (refs.length === 1 && r.toString().trim() === refs[0].textContent) only = refs[0];
+    }
+    ed.querySelectorAll('sup.fn.picked').forEach((x) => { if (x !== only) x.classList.remove('picked'); });
+    only?.classList.add('picked');
+  });
+
+  // copying keeps footnotes: the number travels with its note, and pastes back as a footnote
+  function copyFromPage(e, cut) {
+    const sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !ed.contains(sel.anchorNode)) return;
+    const r = sel.getRangeAt(0);
+    const box = document.createElement('div');
+    const c = r.commonAncestorContainer;
+    const inside = (c.nodeType === 1 ? c : c.parentElement).closest('sup.fn');
+    box.append(inside ? inside.cloneNode(true) : r.cloneContents()); // just the number: the whole footnote
+    if (!box.querySelector('sup.fn')) return; // nothing special: the browser copies it as usual
+    for (const x of box.querySelectorAll('sup.fn')) { x.removeAttribute('data-id'); x.classList.remove('picked', 'lit'); }
+    e.preventDefault();
+    e.clipboardData.setData('text/html', box.innerHTML);
+    e.clipboardData.setData('text/plain', r.toString());
+    if (cut) { if (inside) inside.remove(); else document.execCommand('delete'); layoutNotes(); recount(); saveDoc(); }
+  }
+  ed.addEventListener('copy', (e) => copyFromPage(e, false));
+  ed.addEventListener('cut', (e) => copyFromPage(e, true));
+
   /* ================= find (⌘F) ================= */
   const findBox = $('find'), findInput = findBox.querySelector('input'), findCount = findBox.querySelector('span');
   const marks = $('marks');
@@ -1731,6 +2066,7 @@
       const walk = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT);
       let node, block = null;
       while ((node = walk.nextNode())) {
+        if (node.parentElement.closest('sup.fn')) continue; // not the footnote numbers
         const b = node.parentElement.closest('p, li, div');
         if (block && b !== block) { text += '\n'; at.push(null); } // lines never run together
         block = b;
@@ -1794,7 +2130,8 @@
   /* ================= keys ================= */
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); }
+    if (mod && e.altKey && e.code === 'KeyF') { e.preventDefault(); addFootnote(); }
+    else if (mod && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); }
     else if (mod && e.key.toLowerCase() === 'g' && findBox.classList.contains('show') && found.length) {
       e.preventDefault();
       foundAt = (foundAt + (e.shiftKey ? found.length - 1 : 1)) % found.length;
@@ -1810,7 +2147,11 @@
   });
 
   document.addEventListener('visibilitychange', () => { if (document.hidden) flushAll(); });
-  window.addEventListener('pagehide', () => { leaving = true; flushAll(); });
+  window.addEventListener('pagehide', () => {
+    leaving = true;
+    flushAll();
+    if (docName?.startsWith('paper-') && blankPage()) files.remove(docName); // closing a paper you never wrote on
+  });
 
   /* ================= start ================= */
   (async () => {

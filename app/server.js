@@ -43,7 +43,7 @@ const isPage = (name) => name === 'page' || DAY.test(name) || PAPER.test(name);
 function firstLine(html) {
   const decode = (t) => t.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-  const lines = [...unwrap(html).matchAll(/<(p|li)[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => decode(m[2]));
+  const lines = [...unwrap(html).replace(/<sup class="fn"[^>]*>[\s\S]*?<\/sup>/g, '').matchAll(/<(p|li)[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => decode(m[2]));
   return lines.join('\n').replace(/\s+$/, '').slice(0, 600);
 }
 
@@ -53,7 +53,7 @@ const END = '<!-- paper:end -->';
 const wrap = (body) => `<!doctype html>
 <meta charset="utf-8">
 <title>Paper</title>
-<style>body{max-width:34em;margin:12vh auto;padding:0 16px;font:20px/1.55 "Times New Roman",serif;color:#000;background:#f3efe6}</style>
+<style>body{max-width:34em;margin:12vh auto;padding:0 16px;font:20px/1.55 "Times New Roman",serif;color:#000;background:#f3efe6}sup.fn{font-size:.62em;color:#978972}</style>
 ${START}
 ${body}
 ${END}
@@ -185,6 +185,26 @@ const server = http.createServer(async (req, res) => {
         if (req.headers['x-paper'] !== '1') return send(res, 403, 'forbidden');
         const body = await readBody(req);
         write(file, isPage(name) ? wrap(body) : body);
+        return send(res, 204);
+      }
+      // Delete from the tiny pages: the paper moves to ~/Paper/.trash, where it can be got back
+      if (req.method === 'DELETE' && PAPER.test(name) && url.searchParams.get('trash') === '1') {
+        if (req.headers['x-paper'] !== '1') return send(res, 403, 'forbidden');
+        const bin = path.join(DIR, '.trash');
+        fs.mkdirSync(bin, { recursive: true });
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        for (const f of [file, file.replace(/\.html$/, '.md')]) {
+          try { fs.renameSync(f, path.join(bin, path.basename(f).replace(/(\.\w+)$/, ` ${stamp}$1`))); } catch {}
+        }
+        return send(res, 204);
+      }
+      // a blank paper is removed (never the first page, and never one with anything written on it)
+      if (req.method === 'DELETE' && PAPER.test(name)) {
+        if (req.headers['x-paper'] !== '1') return send(res, 403, 'forbidden');
+        let text = '';
+        try { text = fs.readFileSync(file, 'utf8'); } catch { return send(res, 204); }
+        if (unwrap(text).replace(/<[^>]+>/g, '').replace(/&nbsp;|&#8203;|[\s\u00a0\u200b]/g, '')) return send(res, 409, 'not blank');
+        for (const f of [file, file.replace(/\.html$/, '.md')]) { try { fs.unlinkSync(f); } catch {} }
         return send(res, 204);
       }
     }

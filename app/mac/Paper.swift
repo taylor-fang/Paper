@@ -80,7 +80,7 @@ enum Store {
         <!doctype html>
         <meta charset="utf-8">
         <title>Paper</title>
-        <style>body{max-width:34em;margin:12vh auto;padding:0 16px;font:20px/1.4 "Times New Roman",serif;color:#000;background:#f3efe6}</style>
+        <style>body{max-width:34em;margin:12vh auto;padding:0 16px;font:20px/1.4 "Times New Roman",serif;color:#000;background:#f3efe6}sup.fn{font-size:.62em;color:#978972}</style>
         \(start)
         \(body)
         \(end)
@@ -151,6 +151,7 @@ enum Store {
     // a paper's writing from the top, a line per paragraph, blank lines kept (for its tiny page)
     static func firstLine(_ html: String) -> String {
         guard let re = try? NSRegularExpression(pattern: "<(p|li)[^>]*>([\\s\\S]*?)</\\1>", options: .caseInsensitive) else { return "" }
+        let html = html.replacingOccurrences(of: "<sup class=\"fn\"[^>]*>[\\s\\S]*?</sup>", with: "", options: .regularExpression) // not footnote numbers
         let ns = html as NSString
         var lines: [String] = []
         for m in re.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
@@ -188,6 +189,34 @@ enum Store {
             }
             return ["name": name, "first": first, "modified": modified * 1000]
         }
+    }
+
+    // a paper with nothing written on it: removed when you leave it (only papers, never the first page or opened files)
+    static func isBlank(_ name: String) -> Bool {
+        read(name).replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;|&#8203;|[\\s\\u00a0\\u200b]", with: "", options: .regularExpression).isEmpty
+    }
+    static func removeIfBlank(_ name: String) -> Bool {
+        guard isPaperName(name), isBlank(name), let u = url(name) else { return false }
+        try? FileManager.default.removeItem(at: u)
+        try? FileManager.default.removeItem(at: u.deletingPathExtension().appendingPathExtension("md"))
+        return true
+    }
+
+    // Delete from the tiny pages: a paper goes to the Trash; a file opened from Finder is only
+    // taken off Paper's list, and stays where it is
+    static func trash(_ name: String) -> Bool {
+        if isFileName(name) {
+            var map = opened()
+            map.removeValue(forKey: name)
+            if let data = try? JSONSerialization.data(withJSONObject: map, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: openedURL) }
+            return true
+        }
+        guard isPaperName(name), let u = url(name) else { return false }
+        try? FileManager.default.trashItem(at: u, resultingItemURL: nil)
+        let md = u.deletingPathExtension().appendingPathExtension("md")
+        if FileManager.default.fileExists(atPath: md.path) { try? FileManager.default.trashItem(at: md, resultingItemURL: nil) }
+        return true
     }
 
     static func newName() -> String {
@@ -275,6 +304,8 @@ final class PaperWindow: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         web.evaluateJavaScript("window.dispatchEvent(new Event('pagehide'))", completionHandler: nil)
+        let name = paper
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { _ = Store.removeIfBlank(name) } // a paper closed without a word on it
         (NSApp.delegate as? AppDelegate)?.closed(self)
     }
 }
@@ -362,6 +393,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         case "markdown": replyHandler(Store.saveMarkdown(name, text), nil)
         case "settings": replyHandler(Store.write(Store.settingsURL, text, keepHistory: false), nil)
         case "list": replyHandler(Store.list(), nil)
+        case "delete": replyHandler(Store.removeIfBlank(name), nil)
+        case "trash": replyHandler(Store.trash(name), nil)
         case "open":
             if Store.isPage(name) { pw?.paper = name }
             replyHandler(true, nil)
