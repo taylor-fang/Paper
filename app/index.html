@@ -72,6 +72,7 @@
     line-height: var(--lh);
     caret-color: transparent; /* drawn by #caret instead, so it can breathe */
     white-space: pre-wrap; /* so a space typed at the end of a line is a real space, never a non-breaking one that starts the next line a little in */
+    overflow-x: clip; /* the space where a line wraps hangs just past the edge; its highlight stays inside the column */
     min-height: 50vh;
     overflow-wrap: break-word;
   }
@@ -126,8 +127,10 @@
   sup.fn.picked::selection { background: transparent; }
   #fnotes { position: absolute; left: 0; top: 0; z-index: 1; }
   .fnote { position: absolute; font: 13px/1.35 var(--font); color: var(--fn); transition: color .15s; }
-  .fnote .n { margin-right: .9em; user-select: none; -webkit-user-select: none; }
+  .fnote .n { margin-right: .7em; user-select: none; -webkit-user-select: none; }
   .fnote .body { outline: none; caret-color: transparent; white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* an empty note keeps a real place for the cursor, so Safari doesn't lose it and scroll to the top */
+  .fnote .body:empty { display: inline-block; min-width: 2px; min-height: 1.35em; vertical-align: top; }
   .fnote .body:empty::before { content: "Write a note"; color: var(--faint); }
   .fnote.lit { color: #4a4540; }
   :root { --fn: #978972; } /* the light brown, a little darker */
@@ -640,7 +643,7 @@
   let docName = null;
 
   const saveDoc = saver(() => {
-    if (docName) { files.put(docName, ed.innerHTML); files.markdown(docName, toMarkdown(ed)); }
+    if (docName) { files.put(docName, ed.innerHTML.replace(/class="fn[^"]*"/g, 'class="fn"')); files.markdown(docName, toMarkdown(ed)); }
     retitle();
   }, 400);
 
@@ -675,10 +678,15 @@
     const defs = {};
     md = md.replace(/\r\n?/g, '\n').replace(/^\[\^([^\]]+)\]:\s*(.*)$/gm, (_, id, t) => { defs[id] = t; return ''; });
     const lines = md.split('\n');
-    let para = [];
+    let para = [], blanks = 0;
     const flush = () => { if (para.length) out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; };
     for (let k = 0; k < lines.length; k++) {
       const line = lines[k];
+      if (line.trim()) {
+        // more than one blank line before this: the extra ones are empty lines on the page
+        if (out.length && blanks > 1 && !para.length) for (let e = 1; e < blanks; e++) out.push('<p><br></p>');
+        blanks = 0;
+      } else blanks++;
       const item = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
       if (item) {
         flush();
@@ -708,7 +716,7 @@
   }
 
   function toMarkdown(rootEl) {
-    const esc = (t) => t.replace(/\u00a0/g, ' ').replace(/([\\`*_\[\]])/g, '\\$1');
+    const esc = (t) => t.replace(/\u00a0/g, ' ').replace(/\u200b/g, '').replace(/([\\`*_\[\]])/g, '\\$1');
     // markers have to hug the words: "** bold **" isn't bold in markdown
     const wrap = (open, text, close = open) => {
       const m = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
@@ -753,11 +761,15 @@
       }
       return lines;
     }
+    // an empty line between paragraphs is written as one more blank line, so it comes back when read
     const blocks = [];
+    let spare = 0;
+    const push = (t) => { blocks.push('\n'.repeat(spare) + t); spare = 0; };
     for (const b of rootEl.children) {
-      if (b.nodeName === 'UL' || b.nodeName === 'OL') { blocks.push(list(b, '', []).join('\n')); continue; }
+      if (b.nodeName === 'UL' || b.nodeName === 'OL') { push(list(b, '', []).join('\n')); continue; }
       const text = inline(b).trim().replace(/\n/g, '  \n');
-      if (text) blocks.push(text.replace(/^(#|>|[-+] )/, '\\$1').replace(/^(\d+)\. /, '$1\\. '));
+      if (text) push(text.replace(/^(#|>|[-+] )/, '\\$1').replace(/^(\d+)\. /, '$1\\. '));
+      else if (blocks.length) spare++;
     }
     if (notesOut.length) blocks.push(notesOut.map((t, k) => `[^${k + 1}]: ${t}`).join('\n'));
     return blocks.join('\n\n') + '\n';
@@ -813,7 +825,7 @@
     await openDoc(name);
   }
   // a block's words, without footnote numbers
-  const wordsOf = (b) => { const c = b.cloneNode(true); c.querySelectorAll('sup.fn').forEach((x) => x.remove()); return c.textContent; };
+  const wordsOf = (b) => { const c = b.cloneNode(true); c.querySelectorAll('sup.fn').forEach((x) => x.remove()); return c.textContent.replace(/\u200b/g, ''); };
   // a paper's writing from the top, a line per paragraph, its blank lines kept (but none trailing at the end)
   const previewOf = (root) => [...root.querySelectorAll('p, li')].map((b) => wordsOf(b).replace(/\s+/g, ' ').trim()).join('\n').replace(/\s+$/, '').slice(0, 600);
 
@@ -975,7 +987,7 @@
     for (let n; (n = walk.nextNode());) if (n.data.includes('\u200b')) stray.push(n);
     const sel = getSelection(), at = sel.rangeCount ? sel.getRangeAt(0) : null;
     for (const n of stray) {
-      const afterLink = n.previousSibling?.nodeName === 'A';
+      const afterLink = n.previousSibling?.nodeName === 'A' || !!n.previousSibling?.matches?.('sup.fn'); // after a link or a footnote, it's the cursor's place
       for (let k = n.data.length - 1; k >= 0; k--) {
         if (n.data[k] !== '\u200b' || (afterLink && k === 0)) continue;
         const keep = at && at.startContainer === n && at.startOffset > k;
@@ -1024,7 +1036,17 @@
       plainSpaces(clean);
       // one paragraph's worth goes into the line where the cursor is, not onto a new line
       const one = clean.children.length === 1 && clean.firstElementChild.nodeName === 'P' && !clean.firstElementChild.previousSibling && !clean.firstElementChild.nextSibling;
-      document.execCommand('insertHTML', false, one ? clean.firstElementChild.innerHTML : clean.innerHTML);
+      if (one && clean.querySelector('sup.fn')) {
+        // with a footnote in it, put it in by hand: the browser's own insert misplaces uneditable pieces
+        const sel = getSelection(), r = sel.getRangeAt(0);
+        r.deleteContents();
+        const frag = document.createDocumentFragment();
+        frag.append(...clean.firstElementChild.childNodes);
+        const last = frag.lastChild;
+        r.insertNode(frag);
+        placeCaret((x) => { x.setStartAfter(last); x.collapse(true); });
+        ed.dispatchEvent(new Event('input')); // counts, pages, notes and saving, as for typing
+      } else document.execCommand('insertHTML', false, one ? clean.firstElementChild.innerHTML : clean.innerHTML);
       ed.querySelectorAll('sup.fn').forEach((x) => x.setAttribute('contenteditable', 'false'));
       layoutNotes();
       ed.querySelectorAll('[style]').forEach((el) => el.removeAttribute('style'));
@@ -1853,6 +1875,8 @@
     refs.forEach((ref, k) => {
       if (!ref.dataset.id) ref.dataset.id = 'f' + Math.random().toString(36).slice(2, 8);
       ref.dataset.n = String(k + 1);
+      const after = ref.nextSibling;
+      if (!after || after.nodeType !== 3) ref.after(document.createTextNode('\u200b'));
       if (ref.textContent !== ref.dataset.n) ref.textContent = ref.dataset.n;
       ref.contentEditable = 'false';
       ref.title = ref.dataset.note || '';
@@ -1875,6 +1899,20 @@
     note.innerHTML = '<span class="n"></span><span class="body"></span>';
     const body = note.querySelector('.body');
     body.contentEditable = 'true'; // ⌘B, ⌘I and ⌘U work in notes too
+    // Safari can lose track of where an emptied note is and scroll to the top of the page: hold the page still
+    let heldAt = null;
+    const hold = () => { heldAt = [scrollX, scrollY]; };
+    body.addEventListener('keydown', hold);
+    body.addEventListener('beforeinput', hold);
+    body.addEventListener('focus', hold);
+    body.addEventListener('input', () => {
+      const at = heldAt;
+      if (!at) return;
+      const back = () => { if (Math.abs(scrollY - at[1]) > 2 || Math.abs(scrollX - at[0]) > 2) scrollTo(at[0], at[1]); };
+      back();
+      requestAnimationFrame(back);
+    });
+    body.addEventListener('focus', () => requestAnimationFrame(() => { if (heldAt && Math.abs(scrollY - heldAt[1]) > 2) scrollTo(heldAt[0], heldAt[1]); }));
     body.spellcheck = true;
     body.addEventListener('paste', (e) => {
       e.preventDefault();
@@ -1931,13 +1969,46 @@
   }
   ed.addEventListener('mouseover', (e) => { const r = e.target.closest?.('sup.fn'); if (r) lightNote(r.dataset.id, true); });
   ed.addEventListener('mouseout', (e) => { const r = e.target.closest?.('sup.fn'); if (r) lightNote(r.dataset.id, false); });
+  // a triple-click selects the whole paragraph, past any footnote numbers in it
+  ed.addEventListener('mousedown', (e) => {
+    if (e.detail < 3 || e.button !== 0) return;
+    const block = e.target.closest?.('p, li');
+    if (!block || !ed.contains(block)) return;
+    e.preventDefault();
+    placeCaret((x) => x.selectNodeContents(block));
+  });
+  // backspace just after a footnote number (or delete just before it) removes the footnote
+  function footnoteBeside(r, back) {
+    let n = r.startContainer, o = r.startOffset, x;
+    if (n.nodeType === 3) {
+      const side = back ? n.data.slice(0, o) : n.data.slice(o);
+      if (side.replace(/\u200b/g, '')) return null;
+      x = back ? n.previousSibling : n.nextSibling;
+    } else x = n.childNodes[back ? o - 1 : o];
+    while (x && x.nodeType === 3 && !x.data.replace(/\u200b/g, '')) x = back ? x.previousSibling : x.nextSibling;
+    return x?.matches?.('sup.fn') ? x : null;
+  }
+  ed.addEventListener('keydown', (e) => {
+    if ((e.key !== 'Backspace' && e.key !== 'Delete') || e.metaKey || e.altKey) return;
+    const sel = getSelection();
+    if (!sel.rangeCount || !sel.isCollapsed) return;
+    const ref = footnoteBeside(sel.getRangeAt(0), e.key === 'Backspace');
+    if (!ref) return;
+    e.preventDefault();
+    const after = ref.nextSibling, before = ref.previousSibling;
+    if (after?.nodeType === 3 && after.data.startsWith('\u200b')) after.deleteData(0, 1);
+    placeCaret((x) => { if (before) x.setStartAfter(before); else x.setStart(ref.parentNode, 0); x.collapse(true); });
+    ref.remove();
+    ed.dispatchEvent(new Event('input'));
+  });
+
   // clicking a number goes to its note
   ed.addEventListener('mousedown', (e) => {
     const r = e.target.closest?.('sup.fn');
     if (!r) return;
     e.preventDefault();
     const body = fnLayer.querySelector(`[data-id="${r.dataset.id}"] .body`);
-    body?.focus();
+    body?.focus({ preventScroll: true });
     if (body) placeCaret((x) => { x.selectNodeContents(body); x.collapse(false); });
   });
   function backToText(id) {
@@ -1998,7 +2069,7 @@
     layoutNotes();
     saveDoc();
     const body = fnLayer.querySelector(`[data-id="${ref.dataset.id}"] .body`);
-    body.focus();
+    body.focus({ preventScroll: true });
     caretJumped = true;
     drawCaret();
   }
@@ -2056,6 +2127,38 @@
   window.addEventListener('resize', drawMarks);
   let found = [], foundAt = -1;
   // exact matches: the whole word (or words), any case, even across bold or italic
+  // a pattern for the words typed, in their everyday English forms: plural and possessive, -ed and -ing,
+  // -er, -ly, -al and -ally, and back again (origins finds origin). Always whole words, never the inside of
+  // another word: "the" doesn't find other or theory. Other languages are matched as typed, whole words
+  const ENDINGS = "(?:s|es|'s|’s|s'|s’|ed|d|ing|er|ers|est|ly|al|ally|ion|ions|ation|ations|ic|ical|ically|ness|ment|ments)";
+  function stemsOf(w) {
+    const out = new Set([w]);
+    const cut = (end, add = '') => { if (w.length > end.length + 2 && w.endsWith(end)) out.add(w.slice(0, -end.length) + add); };
+    cut("'s"); cut('’s'); cut("s'"); cut('s’');
+    cut('ies', 'y'); cut('ied', 'y'); cut('es'); if (!/ss$/.test(w)) cut('s');
+    cut('ing'); cut('ing', 'e'); cut('ed'); cut('ed', 'e');
+    cut('ally'); cut('ly'); cut('al'); cut('ers'); cut('er'); cut('ations'); cut('ation'); cut('ions'); cut('ion');
+    return [...out];
+  }
+  function wordForms(q) {
+    const words = q.split(/\s+/).filter(Boolean);
+    if (!words.length) return null;
+    const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const one = (w) => {
+      if (!/^[a-z’']+$/i.test(w)) return esc(w); // not English: as typed
+      const alts = stemsOf(w).map((st) => {
+        let p = esc(st);
+        if (/y$/.test(st)) p = esc(st.slice(0, -1)) + '(?:y|ie|i)';        // study, studies, studied
+        else if (/e$/.test(st) && st.length > 3) p = esc(st.slice(0, -1)) + 'e?'; // make, making (not "the", or it would find thing)
+        else if (/[bdgklmnprt]$/.test(st)) p += esc(st.slice(-1)) + '?';  // run, running
+        return p;
+      });
+      return `(?:${alts.join('|')})${ENDINGS}{0,2}`; // up to two endings: originals, originally
+    };
+    try {
+      return new RegExp(`(?<![\\p{L}\\p{N}_])${words.map(one).join('[\\s\\u00a0]+')}(?![\\p{L}\\p{N}_])`, 'giu');
+    } catch { return null; }
+  }
   function search() {
     const q = findInput.value.trim().toLocaleLowerCase();
     found = [];
@@ -2073,12 +2176,9 @@
         for (let k = 0; k < node.length; k++) at.push([node, k]);
         text += node.data;
       }
-      const low = text.toLocaleLowerCase();
-      const isWord = (c) => !!c && /[\p{L}\p{N}_]/u.test(c);
-      for (let k = low.indexOf(q); k !== -1; k = low.indexOf(q, k + 1)) {
-        const end = k + q.length;
-        if ((isWord(q[0]) && isWord(low[k - 1])) || (isWord(q[q.length - 1]) && isWord(low[end]))) continue; // part of a longer word
-        const a = at[k], b = at[end - 1];
+      const re = wordForms(q);
+      if (re) for (const m of text.matchAll(re)) {
+        const a = at[m.index], b = at[m.index + m[0].length - 1];
         if (!a || !b) continue;
         const r = document.createRange();
         r.setStart(a[0], a[1]);
