@@ -41,6 +41,13 @@ enum Store {
     static func url(_ name: String) -> URL? {
         if isPaperName(name) { return dataDir.appendingPathComponent("papers").appendingPathComponent(name + ".html") }
         if isFileName(name) { return opened()[name].map { URL(fileURLWithPath: $0) } }
+        // each paper's own notes and to-dos: ~/Paper/notes/<paper>.txt, ~/Paper/todos/<paper>.md
+        if let m = name.range(of: "^(notes|todo)-", options: .regularExpression) {
+            let paper = String(name[m.upperBound...])
+            guard isPage(paper) else { return nil }
+            return name.hasPrefix("notes-") ? dataDir.appendingPathComponent("notes").appendingPathComponent(paper + ".txt")
+                                            : dataDir.appendingPathComponent("todos").appendingPathComponent(paper + ".md")
+        }
         return named[name].map { dataDir.appendingPathComponent($0) }
     }
 
@@ -200,6 +207,9 @@ enum Store {
         guard isPaperName(name), isBlank(name), let u = url(name) else { return false }
         try? FileManager.default.removeItem(at: u)
         try? FileManager.default.removeItem(at: u.deletingPathExtension().appendingPathExtension("md"))
+        for side in ["notes-" + name, "todo-" + name] { // only if they're empty too
+            if let f = url(side), read(side).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { try? FileManager.default.removeItem(at: f) }
+        }
         return true
     }
 
@@ -216,6 +226,9 @@ enum Store {
         try? FileManager.default.trashItem(at: u, resultingItemURL: nil)
         let md = u.deletingPathExtension().appendingPathExtension("md")
         if FileManager.default.fileExists(atPath: md.path) { try? FileManager.default.trashItem(at: md, resultingItemURL: nil) }
+        for side in ["notes-" + name, "todo-" + name] { // its notes and to-dos go with it
+            if let f = url(side), FileManager.default.fileExists(atPath: f.path) { try? FileManager.default.trashItem(at: f, resultingItemURL: nil) }
+        }
         return true
     }
 

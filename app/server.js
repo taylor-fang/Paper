@@ -30,8 +30,13 @@ const NAMED = { page: 'page.html', notes: 'notes.txt', todo: 'todo.md' };
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const PAPER = /^paper-[a-z0-9]+$/; // further papers, saved in ~/Paper/papers
 
+// each paper's own notes and to-dos: ~/Paper/notes/<paper>.txt and ~/Paper/todos/<paper>.md
+const SIDE = /^(notes|todo)-(page|paper-[a-z0-9]+|file-[a-z0-9]+)$/;
+const sideFiles = (paper) => [path.join(DIR, 'notes', paper + '.txt'), path.join(DIR, 'todos', paper + '.md')];
 function fileFor(name) {
   if (NAMED[name]) return path.join(DIR, NAMED[name]);
+  const side = name.match(SIDE);
+  if (side) return sideFiles(side[2])[side[1] === 'notes' ? 0 : 1];
   if (DAY.test(name)) return path.join(DIR, 'days', name + '.html');
   if (PAPER.test(name)) return path.join(DIR, 'papers', name + '.html');
   return null;
@@ -193,8 +198,9 @@ const server = http.createServer(async (req, res) => {
         const bin = path.join(DIR, '.trash');
         fs.mkdirSync(bin, { recursive: true });
         const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        for (const f of [file, file.replace(/\.html$/, '.md')]) {
-          try { fs.renameSync(f, path.join(bin, path.basename(f).replace(/(\.\w+)$/, ` ${stamp}$1`))); } catch {}
+        const [notesFile, todoFile] = sideFiles(name);
+        for (const [f, as] of [[file], [file.replace(/\.html$/, '.md')], [notesFile, name + ' notes.txt'], [todoFile, name + ' to-do.md']]) {
+          try { fs.renameSync(f, path.join(bin, (as || path.basename(f)).replace(/(\.\w+)$/, ` ${stamp}$1`))); } catch {}
         }
         return send(res, 204);
       }
@@ -204,7 +210,7 @@ const server = http.createServer(async (req, res) => {
         let text = '';
         try { text = fs.readFileSync(file, 'utf8'); } catch { return send(res, 204); }
         if (unwrap(text).replace(/<[^>]+>/g, '').replace(/&nbsp;|&#8203;|[\s\u00a0\u200b]/g, '')) return send(res, 409, 'not blank');
-        for (const f of [file, file.replace(/\.html$/, '.md')]) { try { fs.unlinkSync(f); } catch {} }
+        for (const f of [file, file.replace(/\.html$/, '.md'), ...sideFiles(name)]) { try { if (f === file || f.endsWith('.md') && f.includes('/papers/') || !fs.readFileSync(f, 'utf8').trim()) fs.unlinkSync(f); } catch {} }
         return send(res, 204);
       }
     }

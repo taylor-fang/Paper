@@ -201,9 +201,9 @@
   .ld .v { font: calc(18px + var(--adj))/1.4 var(--font); color: rgba(0, 0, 0, .9); text-align: right; cursor: pointer; user-select: none; -webkit-user-select: none; }
   .ld .num { position: relative; display: inline-block; cursor: ew-resize; touch-action: none; }
   .ld .num u { position: absolute; top: 50%; transform: translateY(-50%); display: block; line-height: 0; text-decoration: none; color: var(--soft); opacity: 0; transition: opacity .2s; cursor: pointer; padding: 4px 2px; }
-  .ld .num u svg { display: block; width: 5px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
-  .ld .num u:first-child { right: 100%; margin-right: 4.6px; }
-  .ld .num u:last-child { left: 100%; margin-left: 4.6px; }
+  .ld .num u svg { display: block; width: 4.5px; height: 8.1px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+  .ld .num u:first-child { right: 100%; margin-right: 3.2px; }
+  .ld .num u:last-child { left: 100%; margin-left: 3.2px; }
   .ld:hover .num u { opacity: 1; }
 
   /* the word count, and export (or, on the website, the app download) */
@@ -343,13 +343,13 @@
     // only for a paper with nothing on it; Paper's own first page and files opened from Finder are never removed
     remove(name) {
       if (!/^paper-[a-z0-9]+$/.test(name)) return;
-      try { localStorage.removeItem('paper.file.' + name); localStorage.removeItem('paper.mtime.' + name); } catch {}
+      try { for (const k of [name, 'notes-' + name, 'todo-' + name]) { localStorage.removeItem('paper.file.' + k); localStorage.removeItem('paper.mtime.' + k); } } catch {}
       if (native) return void ask({ op: 'delete', name });
       if (onServer) fetch('/api/files/' + name, { method: 'DELETE', headers: { 'x-paper': '1' } }).catch(() => {});
     },
     async trash(name) {
       if (!/^(paper-|file-)[a-z0-9]+$/.test(name)) return;
-      try { localStorage.removeItem('paper.file.' + name); localStorage.removeItem('paper.mtime.' + name); } catch {}
+      try { for (const k of [name, 'notes-' + name, 'todo-' + name]) { localStorage.removeItem('paper.file.' + k); localStorage.removeItem('paper.mtime.' + k); } } catch {}
       if (native) return ask({ op: 'trash', name });
       if (onServer) { try { await fetch('/api/files/' + name + '?trash=1', { method: 'DELETE', headers: { 'x-paper': '1' } }); } catch {} }
     },
@@ -532,15 +532,27 @@
     const c = document.createElement('canvas').getContext('2d');
     c.font = `${cs.fontWeight} ${fs}px ${cs.fontFamily}`;
     const m = c.measureText('H');
-    const baseline = (lh - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2 + m.fontBoundingBoxAscent;
+    // where the words really sit: measured from a to-do with words in it, so every font lines up the same way
+    let baseline = (lh - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2 + m.fontBoundingBoxAscent;
+    for (const text of $('todos').querySelectorAll('.text')) {
+      const words = [...text.childNodes].find((n) => n.nodeType === 3 && n.data.trim());
+      if (!words) continue;
+      const r = document.createRange();
+      r.selectNodeContents(words);
+      const line = r.getClientRects()[0];
+      if (line && line.height) baseline = line.bottom - m.fontBoundingBoxDescent - text.closest('li').getBoundingClientRect().top;
+      break;
+    }
     const capTop = baseline - m.actualBoundingBoxAscent;
     const imgH = (m.actualBoundingBoxAscent + fs * .14) / BOX_IN_IMAGE.height;
     const img = $('todos').querySelector('.check img');
     const imgW = img && img.naturalHeight ? imgH * img.naturalWidth / img.naturalHeight : imgH;
+    // the box a touch taller than the capitals, with the words centred in it
+    const boxTop = capTop - fs * .07;
     $('todos').querySelectorAll('.check').forEach((b) => {
       b.style.height = imgH + 'px';
       b.style.width = (BOX_IN_IMAGE.left + BOX_IN_IMAGE.width) * imgW + 'px';
-      b.style.marginTop = capTop - BOX_IN_IMAGE.top * imgH + 'px';
+      b.style.marginTop = boxTop - BOX_IN_IMAGE.top * imgH + 'px';
     });
     strikeAll(); // the lines through done to-dos follow the font and size too
   }
@@ -597,7 +609,7 @@
     }
   }
   window.addEventListener('resize', paginate);
-  document.fonts?.ready.then(() => paginate());
+  document.fonts?.ready.then(() => { paginate(); fitBoxes(); });
 
   // a font's "single" line spacing, as Docs and Word use it: the height the font itself asks for
   const singles = new Map();
@@ -835,7 +847,7 @@
     const full = el.textContent;
     const page = el.parentElement, cs = getComputedStyle(page);
     const room = page.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(getComputedStyle(el).fontSize) * .45;
-    if (el.offsetHeight <= room) return;
+    if (el.offsetHeight <= room || room < 20) return; // not laid out yet (or no room at all): leave the words alone
     const chars = Array.from(full);
     const cut = (n) => chars.slice(0, n).join('').replace(/\s+\S*$/, '').replace(/[\s,.;:]+$/, '') + '…';
     let lo = 0, hi = chars.length;
@@ -875,7 +887,7 @@
     plus.className = 'pg new';
     plus.title = 'new paper';
     plus.innerHTML = '<img src="assets/icon-new.png" alt="new">';
-    plus.onclick = async () => { await newPaper(); showPapers(false); };
+    plus.onclick = async () => { await newPaper(); toggleBar(false); }; // straight to the blank paper, side bar closed
     for (const p of papers) {
       const el = document.createElement('div');
       el.className = 'pg' + (p.name === docName ? ' on' : '');
@@ -905,6 +917,11 @@
       if (p.name === docName) { saveDoc.flush(); body = ed.innerHTML; }
       const name = newName();
       files.put(name, body || '<p><br></p>');
+      // its notes and to-dos come too
+      if (p.name === docName) { saveNotes.flush(); saveTodos.flush(); }
+      const [n, t] = await Promise.all([files.get('notes-' + p.name), files.get('todo-' + p.name)]);
+      if (n.trim()) files.put('notes-' + name, n);
+      if (t.trim()) files.put('todo-' + name, t);
       setTimeout(() => showPapers(true), 150);
     });
     if (p.name !== 'page') item('Delete', async () => {
@@ -927,10 +944,34 @@
   const STARTER = '<p>A paper for writing.</p><p>Mouse over the right of the screen for visuals.</p>';
 
   // nothing written: no words and no list items
-  const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn');
+  const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn') && !notesText().trim() && !todos.some((t) => t.t.trim());
+
+  // this paper's own notes and to-dos; the first time, the old shared ones become the open paper's
+  async function loadSide(name) {
+    let [n, t] = await Promise.all([files.get('notes-' + name), files.get('todo-' + name)]);
+    if (!n.trim() && !t.trim()) {
+      // once: the old shared notes and to-dos move to this paper, and the shared files are emptied
+      // (their last contents stay in .history), so no other paper or window picks them up again
+      const [gn, gt] = await Promise.all([files.get('notes'), files.get('todo')]);
+      if (gn.trim() || gt.trim()) {
+        [n, t] = [gn, gt];
+        if (n.trim()) files.put('notes-' + name, n);
+        if (t.trim()) files.put('todo-' + name, t);
+        files.put('notes', '');
+        files.put('todo', '');
+      }
+    }
+    setNotes(n);
+    todos = parseTodos(t);
+    todoUndo.length = 0;
+    todoRedo.length = 0;
+    renderTodos();
+  }
 
   async function openDoc(name) {
     saveDoc.flush();
+    saveNotes.flush(); // the paper you're leaving keeps its own notes and to-dos
+    saveTodos.flush();
     if (docName && docName !== name && docName.startsWith('paper-') && blankPage()) files.remove(docName); // a blank paper you've left
     docName = name;
     s.current = name;
@@ -941,6 +982,7 @@
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     ed.innerHTML = body.trim() || (firstVisit ? STARTER : '<p><br></p>');
     plainSpaces(ed);
+    await loadSide(name);
     retitle();
     recount();
     paginate();
@@ -1496,7 +1538,8 @@
       notes.append(p);
     }
   }
-  const saveNotes = saver(() => files.put('notes', notesText()), 400);
+  // the notes and to-dos belong to the paper that's open: notes-<paper>, todo-<paper>
+  const saveNotes = saver(() => { if (docName) files.put('notes-' + docName, notesText()); }, 400);
   notes.addEventListener('input', () => {
     if (!notes.textContent && !notes.querySelector('p')) setNotes('');
     saveNotes();
@@ -1517,7 +1560,7 @@
     }
     return out;
   }
-  const saveTodos = saver(() => files.put('todo', todoMd()), 300);
+  const saveTodos = saver(() => { if (docName) files.put('todo-' + docName, todoMd()); }, 300);
 
   const CHECK = '<button class="check" type="button" tabindex="-1" aria-label="done"><img class="b0" src="assets/todo-box.png" alt=""></button>';
 
@@ -2265,10 +2308,6 @@
       }
     } catch {}
 
-    const [n, t] = await Promise.all([files.get('notes'), files.get('todo')]);
-    setNotes(n);
-    todos = parseTodos(t);
-    renderTodos();
     const asked = new URLSearchParams(location.search).get('paper');
     const NAME = /^(page|paper-[a-z0-9]+|file-[a-z0-9]+)$/; // file-…: an .html or .md opened from Finder (the Mac app)
     const start = asked && NAME.test(asked) ? asked : (s.current && NAME.test(s.current) && (native || !s.current.startsWith('file-')) ? s.current : 'page');
