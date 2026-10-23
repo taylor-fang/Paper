@@ -106,6 +106,13 @@
     background: var(--paper);
   }
   #find.show { display: flex; }
+  /* clicking into a link: its address underneath, quietly; click the address to edit it, the arrow to open it */
+  #linktip { position: absolute; z-index: 4; display: none; align-items: center; gap: 10px; max-width: 340px; padding: 4px 10px; border: 1px solid var(--faint); background: var(--paper); font: 13px/1.4 var(--font); color: #a8987f; }
+  #linktip.show { display: flex; }
+  #linktip .url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
+  #linktip .url:hover { color: var(--ink); }
+  #linktip .go { flex: none; cursor: pointer; }
+  #linktip .go:hover { color: var(--ink); }
   /* the tiny pages' right-click menu: two words, square, no shadow */
   #pagemenu { position: fixed; z-index: 6; display: none; min-width: 110px; padding: 4px 0; border: 1px solid var(--faint); background: var(--paper); font: 14px/1.4 var(--font); }
   #pagemenu.show { display: block; }
@@ -297,6 +304,7 @@
   <div id="marks" aria-hidden="true"></div>
   <div id="fnotes"></div>
   <div id="titlebar" aria-hidden="true"></div>
+  <div id="linktip"><span class="url" title="Edit the link"></span><span class="go" title="Open the link">↗</span></div>
   <div id="find"><input type="text" spellcheck="false" autocomplete="off" autocorrect="off" writingsuggestions="false"><span></span></div>
 
 <script>
@@ -1364,6 +1372,7 @@
     linkBox.style.left = Math.max(16, Math.min(rect.left, innerWidth - 316)) + scrollX + 'px';
     linkBox.style.top = rect.bottom + 8 + scrollY + 'px';
     linkBox.classList.add('show');
+    linkTip.classList.remove('show');
     linkBox.focus();
     linkBox.select();
   }
@@ -1398,6 +1407,27 @@
     const a = e.target.closest('a');
     if (a && (e.metaKey || e.ctrlKey)) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); }
   });
+
+  // with the cursor in a link, its address shows underneath
+  const linkTip = $('linktip'), tipUrl = linkTip.querySelector('.url');
+  let tipFor = null;
+  function showLinkTip() {
+    const sel = getSelection();
+    const a = !linkRange && sel.rangeCount && sel.isCollapsed && ed.contains(sel.anchorNode) ? linkAt(sel.getRangeAt(0)) : null;
+    if (!a) { linkTip.classList.remove('show'); tipFor = null; return; }
+    tipFor = a;
+    tipUrl.textContent = a.getAttribute('href').replace(/^mailto:/, '');
+    const rects = a.getClientRects();
+    const r = rects[rects.length - 1] || a.getBoundingClientRect();
+    linkTip.classList.add('show');
+    linkTip.style.left = Math.max(16, Math.min(r.left, innerWidth - linkTip.offsetWidth - 16)) + scrollX + 'px';
+    linkTip.style.top = r.bottom + 6 + scrollY + 'px';
+  }
+  document.addEventListener('selectionchange', showLinkTip);
+  window.addEventListener('resize', showLinkTip);
+  linkTip.addEventListener('mousedown', (e) => e.preventDefault()); // the cursor stays in the link
+  tipUrl.addEventListener('click', () => { linkTip.classList.remove('show'); openLinkBox(); });
+  linkTip.querySelector('.go').addEventListener('click', () => { if (tipFor) window.open(tipFor.href, '_blank', 'noopener'); });
 
   // which block the caret is in, and the text before it in that block
   function caretContext() {
