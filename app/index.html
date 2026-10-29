@@ -203,14 +203,14 @@
 
   /* settings: your handwritten label, a fine line, then the value */
   #bar footer { display: flex; flex-direction: column; margin-top: 24px; }
-  .ld { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
+  .ld { display: flex; align-items: baseline; gap: 9px; padding: 3px 0; } /* room either side of the line, so the size arrows never touch it */
   .ld .line { flex: 1; height: 3px; transform: translateY(-4px); background: linear-gradient(#c4bdb0, #c4bdb0) left center / 100% 1px no-repeat; }
   .ld .v { font: calc(18px + var(--adj))/1.4 var(--font); color: rgba(0, 0, 0, .9); text-align: right; cursor: pointer; user-select: none; -webkit-user-select: none; }
   .ld .num { position: relative; display: inline-block; cursor: ew-resize; touch-action: none; }
   .ld .num u { position: absolute; top: 50%; transform: translateY(-50%); display: block; line-height: 0; text-decoration: none; color: var(--soft); opacity: 0; transition: opacity .2s; cursor: pointer; padding: 4px 2px; }
-  .ld .num u svg { display: block; width: 4.5px; height: 8.1px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
-  .ld .num u:first-child { right: 100%; margin-right: 3.2px; }
-  .ld .num u:last-child { left: 100%; margin-left: 3.2px; }
+  .ld .num u svg { display: block; width: 4.2px; height: 7.6px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+  .ld .num u:first-child { right: 100%; margin-right: 2.8px; } /* the arrow's point just touches the line */
+  .ld .num u:last-child { left: 100%; margin-left: 2.8px; }
   .ld:hover .num u { opacity: 1; }
 
   /* the word count, and export (or, on the website, the app download) */
@@ -228,7 +228,7 @@
   .papers-view #bar #papersWrap { display: flex; }
   .papers-view #notesWrap, .papers-view #todoWrap, .papers-view #options .ld { display: none; }
   .papers-view #count, .papers-view #export { visibility: hidden; }
-  .pgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 18px 18px; padding: 2px 1px 8px; }
+  .pgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
   .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
   .pg:hover { border-color: var(--soft); }
   .pg.on { border-color: rgba(0, 0, 0, .8); }
@@ -2161,6 +2161,9 @@
   });
 
   // copying keeps footnotes: the number travels with its note, and pastes back as a footnote
+  // copying always writes the clipboard itself, so other apps get the formatting and the empty lines:
+  // rich text with bold, italic, underline, strikethrough, links and lists, and every empty line as one;
+  // plain text with a line per paragraph and the empty lines kept. Footnotes travel with their notes
   function copyFromPage(e, cut) {
     const sel = getSelection();
     if (!sel.rangeCount || sel.isCollapsed || !ed.contains(sel.anchorNode)) return;
@@ -2169,11 +2172,38 @@
     const c = r.commonAncestorContainer;
     const inside = (c.nodeType === 1 ? c : c.parentElement).closest('sup.fn');
     box.append(inside ? inside.cloneNode(true) : r.cloneContents()); // just the number: the whole footnote
-    if (!box.querySelector('sup.fn')) return; // nothing special: the browser copies it as usual
-    for (const x of box.querySelectorAll('sup.fn')) { x.removeAttribute('data-id'); x.classList.remove('picked', 'lit'); }
+    // a part of one paragraph keeps the formatting it sits in (bold, italic, a link…)
+    if (!inside && !box.querySelector('p, li, ul, ol')) {
+      for (let n = (c.nodeType === 1 ? c : c.parentElement); n && n !== ed && !/^(P|LI)$/.test(n.nodeName); n = n.parentElement) {
+        if (/^(B|STRONG|I|EM|U|S|STRIKE|DEL|A)$/.test(n.nodeName)) {
+          const w = n.cloneNode(false);
+          w.append(...box.childNodes);
+          box.append(w);
+        }
+      }
+    }
+    for (const x of box.querySelectorAll('sup.fn')) { x.removeAttribute('data-id'); x.removeAttribute('contenteditable'); x.classList.remove('picked', 'lit'); }
+    for (const x of box.querySelectorAll('[style]')) x.removeAttribute('style');
+    // empty lines stay lines: an empty paragraph holds a break so other apps keep it
+    for (const p of box.querySelectorAll('p')) if (!p.textContent.replace(/[\s​]/g, '') && !p.querySelector('br, sup')) p.innerHTML = '<br>';
+    const html = box.innerHTML.replace(/​/g, '');
+    // plain text: a line per paragraph or list item, empty lines kept, lists marked
+    const lines = [];
+    const textOf = (el) => el.textContent.replace(/​/g, '');
+    let open = false; // words outside any paragraph (a part of one line) run on the same line
+    for (const n of box.childNodes) {
+      if (n.nodeName === 'P') { lines.push(textOf(n)); open = false; }
+      else if (n.nodeName === 'UL' || n.nodeName === 'OL') {
+        let k = 1;
+        for (const li of n.querySelectorAll(':scope > li')) lines.push((n.nodeName === 'OL' ? `${k++}. ` : '- ') + textOf(li));
+        open = false;
+      } else if (n.nodeName === 'LI') { lines.push('- ' + textOf(n)); open = false; }
+      else if (open) lines[lines.length - 1] += textOf(n);
+      else { lines.push(textOf(n)); open = true; }
+    }
     e.preventDefault();
-    e.clipboardData.setData('text/html', box.innerHTML);
-    e.clipboardData.setData('text/plain', r.toString());
+    e.clipboardData.setData('text/html', `<meta charset="utf-8"><div>${html}</div>`);
+    e.clipboardData.setData('text/plain', lines.join('\n'));
     if (cut) { if (inside) inside.remove(); else document.execCommand('delete'); layoutNotes(); recount(); saveDoc(); }
   }
   ed.addEventListener('copy', (e) => copyFromPage(e, false));
