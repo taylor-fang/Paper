@@ -74,6 +74,7 @@ Move the mouse to the right edge of the window and click the **S** for the side 
 | Click a setting's value | Cycle through the fonts or paper types |
 | The pages icon (bottom right of the side bar) | Show all your papers as tiny pages; the arrow goes back |
 | Click a tiny page · the + | Open that paper · start a new one |
+| Hover a tiny page, then click its X | Take the paper off the tiny pages. Nothing is deleted: it moves to `~/Paper/removed` (your first paper has no X) |
 | Right-click a tiny page | Duplicate, or Delete (to the Trash) |
 | Finder: right-click an `.html` or `.md` file › Open With › Paper | Edit it in Paper, saved back where it is (Mac app) |
 
@@ -93,3 +94,6 @@ Move the mouse to the right edge of the window and click the **S** for the side 
 | Settings | `~/Paper/.settings.json` |
 | Daily backups | `~/Paper/.history/<date>/`, each file as it was before that day's first change |
 | Deleted papers (browser version) | `~/Paper/.trash/` (the Mac app uses the Trash) |
+| Papers taken off with the X | `~/Paper/removed/`, laid out like `~/Paper` (`papers/`, `notes/`, `todos/`) |
+
+To delete a removed paper for good, open `~/Paper/removed` in Finder and move its files to the Trash yourself. To bring one back, move its files back into the same folders in `~/Paper`.

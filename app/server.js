@@ -192,6 +192,17 @@ const server = http.createServer(async (req, res) => {
         write(file, isPage(name) ? wrap(body) : body);
         return send(res, 204);
       }
+      // the X on a tiny page: the paper and its notes and to-dos move, untouched, into ~/Paper/removed (laid out like ~/Paper)
+      if (req.method === 'DELETE' && PAPER.test(name) && url.searchParams.get('away') === '1') {
+        if (req.headers['x-paper'] !== '1') return send(res, 403, 'forbidden');
+        for (const f of [file, file.replace(/\.html$/, '.md'), ...sideFiles(name)]) {
+          if (!fs.existsSync(f)) continue;
+          const to = path.join(DIR, 'removed', path.basename(path.dirname(f)), path.basename(f));
+          fs.mkdirSync(path.dirname(to), { recursive: true });
+          try { fs.renameSync(f, to); } catch {}
+        }
+        return send(res, 204);
+      }
       // Delete from the tiny pages: the paper moves to ~/Paper/.trash, where it can be got back
       if (req.method === 'DELETE' && PAPER.test(name) && url.searchParams.get('trash') === '1') {
         if (req.headers['x-paper'] !== '1') return send(res, 403, 'forbidden');

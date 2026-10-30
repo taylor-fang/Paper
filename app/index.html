@@ -82,7 +82,7 @@
   /* each line finds its own direction: Hebrew and Arabic run right to left, beside English */
   #editor p, #editor li, #notes p, #todos .text, .pg .t { unicode-bidi: plaintext; text-align: start; }
   #editor ul, #editor ol { margin: 0; padding-left: 2.1em; }
-  #editor li { padding-left: .3em; }
+  #editor li { padding-left: .3em; transform: translateX(0); } /* the transform does nothing you can see, but makes Safari fill a selection's wrapped lines from where the item's words start, not from the page's left edge */
   #editor ul ul, #editor ol ol, #editor ul ol, #editor ol ul { margin: 0; }
   #editor strike, #editor s { text-decoration-thickness: .07em; }
   #editor a { color: inherit; text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
@@ -207,15 +207,15 @@
   .ld .line { flex: 1; height: 3px; transform: translateY(-4px); background: linear-gradient(#c4bdb0, #c4bdb0) left center / 100% 1px no-repeat; }
   .ld .v { font: calc(18px + var(--adj))/1.4 var(--font); color: rgba(0, 0, 0, .9); text-align: right; cursor: pointer; user-select: none; -webkit-user-select: none; }
   .ld .num { position: relative; display: inline-block; cursor: ew-resize; touch-action: none; }
-  .ld .num u { position: absolute; top: 50%; transform: translateY(-50%); display: block; line-height: 0; text-decoration: none; color: var(--soft); opacity: 0; transition: opacity .2s; cursor: pointer; padding: 4px 2px; }
+  .ld .num u { position: absolute; top: 50%; margin-top: -7.8px; display: block; line-height: 0; text-decoration: none; color: transparent; transition: color .2s; cursor: pointer; padding: 4px 2px; } /* fading the colour, not the opacity, so hovering never nudges the arrows sideways */
   .ld .num u svg { display: block; width: 4.2px; height: 7.6px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
   .ld .num u:first-child { right: 100%; margin-right: 2.8px; } /* the arrow's point just touches the line */
   .ld .num u:last-child { left: 100%; margin-left: 2.8px; }
-  .ld:hover .num u { opacity: 1; }
+  .ld:hover .num u { color: var(--soft); }
 
   /* the word count, and export (or, on the website, the app download) */
   .tail { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-top: 28px; }
-  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: #000; user-select: none; }
+  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: #000; user-select: none; white-space: nowrap; }
   .tools { display: flex; align-items: center; gap: 16px; }
   #export { display: flex; align-items: center; gap: 12px; }
   #papersBtn { display: block; height: 16px; width: auto; cursor: pointer; }
@@ -228,10 +228,16 @@
   .papers-view #bar #papersWrap { display: flex; }
   .papers-view #notesWrap, .papers-view #todoWrap, .papers-view #options .ld { display: none; }
   .papers-view #count, .papers-view #export { visibility: hidden; }
+  .papers-view .tail { margin-top: 0; } /* the settings above it are hidden, so the arrow sits closer to the pages: about half the room */
   .pgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
   .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
   .pg:hover { border-color: var(--soft); }
   .pg.on { border-color: rgba(0, 0, 0, .8); }
+  /* hovering a tiny page shows a light X in its top corner: click it to take the paper off the tiny pages (kept in ~/Paper/removed) */
+  .pg { position: relative; }
+  .pg .del { position: absolute; right: 3px; top: 3px; height: 8px; width: auto; padding: 4px; box-sizing: content-box; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
+  .pg:hover .del { opacity: 1; } /* a dark green, from the highlight */
+  .pg .del:hover { filter: brightness(.6); }
   .pg .t {
     display: block; white-space: pre-line; /* each paragraph on its own line; fitted to the page by fitPreview() */
     font: 400 15px/1.2 "Paper Hand", var(--font); color: rgba(0, 0, 0, .9); overflow-wrap: anywhere;
@@ -239,16 +245,16 @@
   .pg .t.blank { opacity: .4; }
   .pg.new { display: flex; align-items: center; justify-content: center; border-style: dashed; }
   .pg.new img { height: 14px; width: auto; }
-  #export .sym { display: block; height: 12px; width: auto; cursor: pointer; } /* the envelope is wider than tall, so a little shorter than the old arrow */
-  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: #000; cursor: pointer; }
+  #export .sym { display: block; height: 14px; width: auto; cursor: pointer; }
+  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: #000; cursor: pointer; white-space: nowrap; }
   #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; text-decoration: none; }
   #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: .6; }
 
   /* a handwritten S at the middle of the right edge, shown when you come near it, opens the side bar */
   #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 44px; cursor: pointer; z-index: 2; }
   #edge::after {
-    content: "S"; position: absolute; right: 17.6px; top: 50%; transform: translateY(-50%);
-    font: 400 24px/1 "Paper Hand", var(--font); color: #000; opacity: 0; transition: opacity .3s;
+    content: "S"; position: absolute; right: 18.8px; top: 50%; transform: translateY(-50%);
+    font: 400 19px/1 "Paper Hand", var(--font); color: #000; opacity: 0; transition: opacity .3s;
   }
   #edge:hover::after { opacity: .55; }
   .open #edge { display: none; }
@@ -264,9 +270,9 @@
   #status {
     position: fixed; left: 20px; bottom: 16px;
     font: 13px var(--font); color: #a8987f; /* a light brown, like the paper's own lines */
-    opacity: 0; transition: opacity .4s; pointer-events: none;
+    opacity: 0; transition: opacity 1.2s; pointer-events: none;
   }
-  #status.show { opacity: 1; transition: opacity .1s; }
+  #status.show { opacity: 1; transition: opacity .6s; }
 
   @media print {
     #bar, #edge, #status { display: none; }
@@ -355,6 +361,19 @@
       if (native) return void ask({ op: 'delete', name });
       if (onServer) fetch('/api/files/' + name, { method: 'DELETE', headers: { 'x-paper': '1' } }).catch(() => {});
     },
+    // the X on a tiny page: off the list, kept in ~/Paper/removed (in the browser, kept aside under its own key)
+    async putAway(name) {
+      if (!/^(paper-|file-)[a-z0-9]+$/.test(name)) return;
+      try {
+        for (const k of [name, 'notes-' + name, 'todo-' + name]) {
+          const v = localStorage.getItem('paper.file.' + k);
+          if (v !== null && !native && !onServer) localStorage.setItem('paper.removed.' + k, v);
+          localStorage.removeItem('paper.file.' + k); localStorage.removeItem('paper.mtime.' + k);
+        }
+      } catch {}
+      if (native) return ask({ op: 'away', name });
+      if (onServer) { try { await fetch('/api/files/' + name + '?away=1', { method: 'DELETE', headers: { 'x-paper': '1' } }); } catch {} }
+    },
     async trash(name) {
       if (!/^(paper-|file-)[a-z0-9]+$/.test(name)) return;
       try { for (const k of [name, 'notes-' + name, 'todo-' + name]) { localStorage.removeItem('paper.file.' + k); localStorage.removeItem('paper.mtime.' + k); } } catch {}
@@ -407,7 +426,7 @@
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(statusTimer);
-    statusTimer = setTimeout(() => el.classList.remove('show'), 900);
+    statusTimer = setTimeout(() => el.classList.remove('show'), 1600);
   }
 
   /* ================= settings ================= */
@@ -431,7 +450,7 @@
   if (!CHOICES.paper.some(([v]) => v === s.paper)) s.paper = DEFAULTS.paper;
   for (const k of Object.keys(RANGE)) s[k] = snap(k, +s[k] || DEFAULTS[k]);
 
-  const EXPORTS = [['md', 'markdown'], ['docx', 'word']];
+  const EXPORTS = [['md', 'md'], ['docx', 'word']];
   const ROWS = [['font', 'Font'], ['size', 'Size'], ['spacing', 'Spacing'], ['paper', 'Paper']];
 
   // each setting: your handwritten label, a fine line, the value.
@@ -505,7 +524,7 @@
     });
   }
 
-  // export: your box-and-arrow; click it for markdown or word
+  // export: your envelope; click it for md or word
   let exportOpen = false;
   function showExport(open) {
     exportOpen = open;
@@ -902,9 +921,17 @@
       const t = document.createElement('span');
       const blank = !p.first.trim();
       t.className = 't' + (blank ? ' blank' : '');
-      t.textContent = blank ? 'untitled' : p.first;
+      t.textContent = blank ? 'untitled' : p.first.replace(/^[\s\u200b]+/, ''); // the words start at the top of the tiny page, whatever space is above them
       el.append(t);
-      el.onclick = async () => { if (p.name !== docName) await openDoc(p.name); showPapers(false); };
+      if (p.name !== 'page') { // the first paper stays
+        const del = document.createElement('img');
+        del.className = 'del';
+        del.src = 'assets/icon-remove.png';
+        del.alt = del.title = 'remove';
+        del.onclick = (e) => { e.stopPropagation(); deletePaper(p, true); };
+        el.append(del);
+      }
+      el.onclick = async () => { if (p.name !== docName) await openDoc(p.name); toggleBar(false); }; // straight to the paper, side bar closed
       el.oncontextmenu = (e) => { e.preventDefault(); pageMenu(e, p); };
       grid.append(el);
     }
@@ -932,17 +959,21 @@
       if (t.trim()) files.put('todo-' + name, t);
       setTimeout(() => showPapers(true), 150);
     });
-    if (p.name !== 'page') item('Delete', async () => {
-      await files.trash(p.name);
-      if (p.name === docName) {
-        const rest = (await files.list()).filter((x) => x.name !== p.name).sort((a, b) => b.modified - a.modified);
-        await openDoc(rest[0]?.name || 'page');
-      }
-      setTimeout(() => showPapers(true), 150);
-    });
+    if (p.name !== 'page') item('Delete', () => deletePaper(p));
     menu.style.left = Math.min(e.clientX, innerWidth - 130) + 'px';
     menu.style.top = Math.min(e.clientY, innerHeight - 70) + 'px';
     menu.classList.add('show');
+  }
+  // off the tiny pages: the X keeps it in ~/Paper/removed, Delete moves it to the Trash; either way it can be got back.
+  // Taking off the paper you're on opens the most recent other one
+  async function deletePaper(p, away) {
+    await (away ? files.putAway(p.name) : files.trash(p.name));
+    status(p.name.startsWith('file-') ? 'Taken off the list' : away ? 'Removed' : 'Moved to Trash'); // a file opened from Finder stays where it is
+    if (p.name === docName) {
+      const rest = (await files.list()).filter((x) => x.name !== p.name).sort((a, b) => b.modified - a.modified);
+      await openDoc(rest[0]?.name || 'page');
+    }
+    setTimeout(() => showPapers(true), 150);
   }
   const closeMenu = () => menu.classList.remove('show');
   document.addEventListener('mousedown', (e) => { if (!menu.contains(e.target)) closeMenu(); }, true);
@@ -990,6 +1021,7 @@
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     ed.innerHTML = body.trim() || (firstVisit ? STARTER : '<p><br></p>');
     plainSpaces(ed);
+    tidyBlocks();
     await loadSide(name);
     retitle();
     recount();
@@ -1052,7 +1084,58 @@
     recount();
     paginate();
     drawCaret();
+    keepCaretUp();
     saveDoc();
+  });
+
+  // writing near the bottom of the window, the page moves up a few lines, so the line being written never sits on the edge
+  function keepCaretUp() {
+    requestAnimationFrame(() => {
+      const sel = getSelection();
+      if (!sel.rangeCount || !sel.isCollapsed || !ed.contains(sel.anchorNode)) return;
+      const r = sel.getRangeAt(0);
+      const lh = parseFloat(getComputedStyle(ed).lineHeight);
+      const rects = r.getClientRects();
+      let rect = rects[rects.length - 1];
+      if (!rect || !rect.height) { // an empty line: measure the line itself
+        const n = r.startContainer;
+        rect = (n.nodeType === 1 ? n : n.parentElement).getBoundingClientRect();
+        if (rect.height > lh * 2) return;
+      }
+      if (rect.bottom > innerHeight - lh * 3) scrollBy({ top: rect.bottom - (innerHeight - lh * 7), behavior: 'smooth' });
+    });
+  }
+
+  // quotes and apostrophes curl as they're typed: let’s gets its ’ straight away, not once the s comes
+  document.addEventListener('beforeinput', (e) => {
+    if (e.inputType !== 'insertText' || (e.data !== "'" && e.data !== '"')) return;
+    const field = e.target;
+    if (!typingIn(field) || isBox(field)) return;
+    const sel = getSelection();
+    if (!sel.rangeCount) return;
+    const r = sel.getRangeAt(0);
+    const n = r.startContainer;
+    let from = n.nodeType === 3 && r.startOffset ? n : (n.nodeType === 3 ? n.parentElement : n).closest('p, li, div');
+    if (!from || !field.contains(from)) from = field;
+    const before = r.cloneRange();
+    before.setStart(from, 0);
+    const prev = before.toString().slice(-1);
+    // after a space, a bracket, a dash or the start of a line it opens; after a letter it closes
+    const opens = !prev || /[\s(\[{\u2014\u2013\u201c\u2018\/-]/.test(prev);
+    e.preventDefault();
+    document.execCommand('insertText', false, e.data === "'" ? (opens ? '\u2018' : '\u2019') : (opens ? '\u201c' : '\u201d'));
+  }, true);
+
+  // Safari can leave a strip between two lines unpainted as a selection is dragged across them: repaint the page once it changes
+  let repaintFrame = 0, repaintFlip = false;
+  document.addEventListener('selectionchange', () => {
+    const sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !ed.contains(sel.anchorNode)) return;
+    cancelAnimationFrame(repaintFrame);
+    repaintFrame = requestAnimationFrame(() => {
+      repaintFlip = !repaintFlip;
+      ed.style.backgroundColor = repaintFlip ? 'rgba(255, 255, 255, 0)' : 'rgba(0, 0, 0, 0)'; // clear either way, but a change, so it all paints again
+    });
   });
 
   // paste as plain text, so the page stays one voice; a link pasted over selected words links them
@@ -1066,9 +1149,13 @@
       const blocks = /\n\s*\n|^\s*([-*+]|\d+\.)\s|^#{1,6}\s|^\[\^/m.test(text);
       // whole paragraphs or lists pasted at the end of a line start on a new line, rather than joining it
       const c = caretContext();
+      const md = document.createElement('div');
+      md.innerHTML = fromMarkdown(text);
+      if (blocks && intoItem(md)) return;
       if (blocks && c && c.before.trim() && getSelection().isCollapsed) document.execCommand('insertParagraph');
       document.execCommand('insertHTML', false, blocks ? fromMarkdown(text) : fromMarkdownInline(text));
       tidyLinks();
+      tidyBlocks();
       layoutNotes();
       return;
     }
@@ -1084,6 +1171,7 @@
       const clean = document.createElement('div');
       clean.innerHTML = cleanPaste(html);
       plainSpaces(clean);
+      if (intoItem(clean)) return;
       // one paragraph's worth goes into the line where the cursor is, not onto a new line
       const one = clean.children.length === 1 && clean.firstElementChild.nodeName === 'P' && !clean.firstElementChild.previousSibling && !clean.firstElementChild.nextSibling;
       if (one && clean.querySelector('sup.fn')) {
@@ -1101,8 +1189,57 @@
       layoutNotes();
       ed.querySelectorAll('[style]').forEach((el) => el.removeAttribute('style'));
       ed.querySelectorAll('span:not([class])').forEach((el) => el.replaceWith(...el.childNodes));
+      tidyBlocks();
     } else document.execCommand('insertText', false, text);
   });
+
+  // keep the page's shape whole after a paste, and in papers a paste once left broken: list items only
+  // inside a list, no paragraph inside a paragraph or a list item, and no paragraph with nothing at all
+  // in it (it has no height, so it could never be clicked into)
+  function tidyBlocks() {
+    for (const p of [...ed.querySelectorAll('p p, li p')]) {
+      if (p.textContent && p.previousSibling) p.before(document.createElement('br'));
+      p.replaceWith(...p.childNodes);
+    }
+    for (const list of [...ed.querySelectorAll('p > ul, p > ol')]) { // a list inside a paragraph moves out after it
+      const p = list.parentElement, rest = document.createElement('p');
+      while (list.nextSibling) rest.append(list.nextSibling);
+      p.after(list);
+      if (rest.childNodes.length) list.after(rest);
+    }
+    const at = getSelection().anchorNode;
+    for (const p of [...ed.querySelectorAll('p')]) {
+      if (p.firstChild) continue;
+      if (p.contains(at) || ed.children.length === 1) p.append(document.createElement('br'));
+      else p.remove();
+    }
+    for (const li of [...ed.querySelectorAll('li')]) {
+      if (/^(UL|OL)$/.test(li.parentElement.nodeName)) continue;
+      let prev = li.previousSibling;
+      while (prev && prev.nodeType === 3 && !prev.data.trim()) prev = prev.previousSibling;
+      if (prev && /^(UL|OL)$/.test(prev.nodeName)) prev.append(li); // joins the list just above it
+      else { const ul = document.createElement('ul'); li.before(ul); ul.append(li); }
+    }
+  }
+
+  // a list pasted into a list item: each of its lines becomes an item of this list, never a list inside the item
+  function intoItem(clean) {
+    const n = getSelection().anchorNode, item = (n?.nodeType === 1 ? n : n?.parentElement)?.closest('li');
+    if (!item || !ed.contains(item) || !clean.querySelector('li') || clean.querySelector('sup.fn')) return false;
+    if (![...clean.children].every((n) => /^(P|UL|OL)$/.test(n.nodeName))) return false;
+    const lines = [];
+    for (const n of clean.children) {
+      for (const x of n.nodeName === 'P' ? [n] : n.querySelectorAll('li')) {
+        const c = x.cloneNode(true);
+        c.querySelectorAll('ul, ol').forEach((l) => l.remove());
+        if (c.textContent.trim()) lines.push(c.innerHTML);
+      }
+    }
+    lines.forEach((h, k) => { if (k) document.execCommand('insertParagraph'); document.execCommand('insertHTML', false, h); });
+    tidyLinks();
+    tidyBlocks();
+    return true;
+  }
 
   function isUrlText(t) { return /^(https?:\/\/|mailto:)\S+$/.test(t) || /^www\.\S+\.\S+$/.test(t); }
 
@@ -1167,11 +1304,19 @@
     for (const el of [...body.querySelectorAll('b, i, u, s, a')]) {
       if (el.querySelector('p, ul, ol, li')) unwrap(el);
     }
+    for (const p of [...body.querySelectorAll('p')]) if (p.querySelector('ul, ol, li')) unwrap(p); // a list never sits inside a paragraph
     for (const p of [...body.querySelectorAll('p')]) {
       if (p.parentElement && p.parentElement.closest('p, li')) {
         if (p.previousSibling) p.before(doc.createElement('br'));
         unwrap(p);
       }
+    }
+    // list items copied without their list (part of a list, copied from Paper) get one back
+    for (const li of [...body.querySelectorAll('li')]) {
+      if (/^(UL|OL)$/.test(li.parentElement.nodeName)) continue;
+      const prev = li.previousElementSibling;
+      if (prev?.nodeName === 'UL' && li.previousSibling === prev) prev.append(li);
+      else wrapIn(li, 'ul');
     }
     for (const list of [...body.querySelectorAll('ul, ol')]) {
       for (const n of [...list.childNodes]) {
@@ -1261,9 +1406,10 @@
         baseline = rect.bottom - m.boxDescent;
       } else {
         // an empty line has no text to measure, so find where its baseline would be
-        const box = (host.classList.contains('text') ? host : host.closest('p, li, div') || host).getBoundingClientRect();
+        const block = host.classList.contains('text') ? host : host.closest('p, li, div') || host;
+        const box = block.getBoundingClientRect(), bs = getComputedStyle(block);
         const lh = parseFloat(cs.lineHeight) || fs * 1.4;
-        left = box.left;
+        left = box.left + parseFloat(bs.borderLeftWidth) + parseFloat(bs.paddingLeft); // where the words start, not the edge of the box (a list item's is a little in from its bullet)
         baseline = box.top + (lh - (m.boxAscent + m.boxDescent)) / 2 + m.boxAscent;
       }
       // as tall as the letters themselves, sitting a little up from the tails so it reads level with the word

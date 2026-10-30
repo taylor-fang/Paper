@@ -213,6 +213,25 @@ enum Store {
         return true
     }
 
+    // The X on a tiny page: the paper and its notes and to-dos move, untouched, into ~/Paper/removed
+    // (laid out like ~/Paper itself), off the tiny pages but not deleted; a file opened from Finder
+    // is only taken off Paper's list
+    static func putAway(_ name: String) -> Bool {
+        if isFileName(name) { return trash(name) }
+        guard isPaperName(name), let u = url(name) else { return false }
+        let fm = FileManager.default
+        let away = dataDir.appendingPathComponent("removed")
+        var moves = [u, u.deletingPathExtension().appendingPathExtension("md")]
+        for side in ["notes-" + name, "todo-" + name] { if let f = url(side) { moves.append(f) } }
+        for f in moves where fm.fileExists(atPath: f.path) {
+            let to = away.appendingPathComponent(f.deletingLastPathComponent().lastPathComponent).appendingPathComponent(f.lastPathComponent)
+            try? fm.createDirectory(at: to.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if fm.fileExists(atPath: to.path) { try? fm.removeItem(at: to) }
+            try? fm.moveItem(at: f, to: to)
+        }
+        return true
+    }
+
     // Delete from the tiny pages: a paper goes to the Trash; a file opened from Finder is only
     // taken off Paper's list, and stays where it is
     static func trash(_ name: String) -> Bool {
@@ -408,6 +427,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         case "list": replyHandler(Store.list(), nil)
         case "delete": replyHandler(Store.removeIfBlank(name), nil)
         case "trash": replyHandler(Store.trash(name), nil)
+        case "away": replyHandler(Store.putAway(name), nil)
         case "open":
             if Store.isPage(name) { pw?.paper = name }
             replyHandler(true, nil)
