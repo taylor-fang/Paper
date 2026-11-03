@@ -250,13 +250,15 @@
   #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; text-decoration: none; }
   #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: .6; }
 
-  /* a handwritten S at the middle of the right edge, shown when you come near it, opens the side bar */
+  /* a hand-drawn pencil at the middle of the right edge, shown when you come near it, opens the side bar;
+     darker still when you're right on it */
   #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 44px; cursor: pointer; z-index: 2; }
-  #edge::after {
-    content: "S"; position: absolute; right: 18.8px; top: 50%; transform: translateY(-50%);
-    font: 400 19px/1 "Paper Hand", var(--font); color: #000; opacity: 0; transition: opacity .3s;
+  #edge img {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    height: 20px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
   }
-  #edge:hover::after { opacity: .55; }
+  #edge:hover img { opacity: .5; }
+  #edge img:hover { opacity: .8; }
   .open #edge { display: none; }
 
   #caret {
@@ -288,7 +290,7 @@
     <div id="lines"><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div></div>
   </div>
 
-  <div id="edge"></div>
+  <div id="edge"><img src="assets/icon-pencil.png" alt="" title="side bar"></div>
   <aside id="bar">
     <section id="notesWrap">
       <h2>Notes</h2>
@@ -1080,6 +1082,7 @@
   }
   ed.addEventListener('input', (e) => {
     tidyLinks();
+    if (!e.isComposing) tidyBlocks();
     if (!ed.textContent && !ed.querySelector('li')) { ed.innerHTML = '<p><br></p>'; caretToEnd(); }
     recount();
     paginate();
@@ -1196,7 +1199,40 @@
   // keep the page's shape whole after a paste, and in papers a paste once left broken: list items only
   // inside a list, no paragraph inside a paragraph or a list item, and no paragraph with nothing at all
   // in it (it has no height, so it could never be clicked into)
-  function tidyBlocks() {
+  function tidyBlocks() { keepCaret(tidyNow); }
+  function tidyNow() {
+    // an item inside another item (Safari's outdent leaves these): it comes out just after it, and what
+    // followed it comes too, so a list after it stays beneath it
+    for (let k = 0, x; k < 500 && (x = [...ed.querySelectorAll('li > li')].pop()); k++) {
+      let after = x.parentNode, cur = null;
+      const moving = [];
+      for (let n = x; n; n = n.nextSibling) moving.push(n);
+      for (const n of moving) {
+        if (n.nodeName === 'LI') { after.after(n); after = cur = n; }
+        else cur.append(n);
+      }
+    }
+    // an item with no words of its own, only a list: the list joins the item above, or stands on its own
+    for (const li of [...ed.querySelectorAll('li')].reverse()) {
+      let f = li.firstChild;
+      while (f && f.nodeType === 3 && !f.data.trim()) f = f.nextSibling;
+      if (!f || !/^(UL|OL)$/.test(f.nodeName)) continue;
+      const prev = li.previousElementSibling;
+      if (prev?.nodeName === 'LI') { prev.append(...li.childNodes); li.remove(); }
+      else li.replaceWith(...li.childNodes);
+    }
+    // two lists of the same kind side by side are one list
+    for (const l of [...ed.querySelectorAll('ul + ul, ol + ol')].reverse()) {
+      if (l.previousSibling?.nodeName === l.nodeName) { l.previousSibling.append(...l.childNodes); l.remove(); }
+    }
+    // a list straight inside a list (Safari's indent makes these): it goes inside the item above it
+    for (const l of ed.querySelectorAll('ul > ul, ul > ol, ol > ul, ol > ol')) {
+      const prev = l.previousElementSibling;
+      if (prev?.nodeName !== 'LI') continue;
+      const last = prev.lastElementChild;
+      if (last && last.nodeName === l.nodeName) { last.append(...l.childNodes); l.remove(); }
+      else prev.append(l);
+    }
     for (const p of [...ed.querySelectorAll('p p, li p')]) {
       if (p.textContent && p.previousSibling) p.before(document.createElement('br'));
       p.replaceWith(...p.childNodes);
@@ -1208,10 +1244,10 @@
       if (rest.childNodes.length) list.after(rest);
     }
     const at = getSelection().anchorNode;
-    for (const p of [...ed.querySelectorAll('p')]) {
+    for (const p of [...ed.querySelectorAll('p, li')]) { // nothing in it at all: no height, so it could never be clicked
       if (p.firstChild) continue;
-      if (p.contains(at) || ed.children.length === 1) p.append(document.createElement('br'));
-      else p.remove();
+      if (p.contains(at) || (p.parentNode === ed && ed.children.length === 1)) p.append(document.createElement('br'));
+      else { const l = p.parentNode; p.remove(); if (/^(UL|OL)$/.test(l.nodeName) && !l.children.length) l.remove(); }
     }
     for (const li of [...ed.querySelectorAll('li')]) {
       if (/^(UL|OL)$/.test(li.parentElement.nodeName)) continue;
@@ -1220,6 +1256,17 @@
       if (prev && /^(UL|OL)$/.test(prev.nodeName)) prev.append(li); // joins the list just above it
       else { const ul = document.createElement('ul'); li.before(ul); ul.append(li); }
     }
+  }
+
+  // the selection stays where it was while Paper moves things around it
+  function keepCaret(fn) {
+    const sel = getSelection(), r = sel.rangeCount ? sel.getRangeAt(0) : null;
+    const was = r && [r.startContainer, r.startOffset, r.endContainer, r.endOffset];
+    fn();
+    if (!was || !was[0].isConnected || !was[2].isConnected) return;
+    const now = sel.rangeCount ? sel.getRangeAt(0) : null;
+    if (now && now.startContainer === was[0] && now.startOffset === was[1] && now.endContainer === was[2] && now.endOffset === was[3]) return;
+    try { placeCaret((x) => { x.setStart(was[0], was[1]); x.setEnd(was[2], was[3]); }); } catch {}
   }
 
   // a list pasted into a list item: each of its lines becomes an item of this list, never a list inside the item
@@ -1367,6 +1414,15 @@
   const isFootnote = (el) => !!el?.classList?.contains('body') && !!el.closest?.('#fnotes');
   const isBox = (el) => el?.id === 'linkbox' || el?.parentElement?.id === 'find'; // the link and find boxes
 
+  // what's just before the cursor, past any empty or invisible text: a footnote number, or words
+  function pieceBefore(r) {
+    let n = r.startContainer, o = r.startOffset, x;
+    if (n.nodeType === 3) { if (n.data.slice(0, o).replace(/\u200b/g, '')) return null; x = n.previousSibling; }
+    else x = n.childNodes[o - 1];
+    while (x && x.nodeType === 3 && !x.data.replace(/\u200b/g, '')) x = x.previousSibling;
+    if (x?.nodeType === 3) return x;
+    return x?.nodeType === 1 && x.matches('sup.fn') ? x : null;
+  }
   function drawCaret() {
     cancelAnimationFrame(caretFrame);
     caretFrame = requestAnimationFrame(() => {
@@ -1404,6 +1460,22 @@
       } else if (rect && rect.height) {
         left = rect.left;
         baseline = rect.bottom - m.boxDescent;
+      } else if (pieceBefore(r)) {
+        // at the end of a line, just after a footnote number or after words the browser reports nothing to
+        // measure: stand right after them, on their line
+        const piece = pieceBefore(r), t = document.createRange();
+        if (piece.nodeType === 3) {
+          const end = piece.data.replace(/\u200b+$/, '').length;
+          t.setStart(piece, end - 1);
+          t.setEnd(piece, end);
+        } else {
+          t.setStart(piece.parentNode.closest('p, li, div') || piece.parentNode, 0);
+          t.setEndBefore(piece);
+        }
+        const tr = [...t.getClientRects()].filter((x) => x.height).pop();
+        left = piece.nodeType === 3 ? tr?.right : piece.getBoundingClientRect().right;
+        baseline = tr ? tr.bottom - m.boxDescent : piece.parentNode.getBoundingClientRect().top + (parseFloat(cs.lineHeight) || fs * 1.4) - m.boxDescent;
+        if (left == null) left = piece.parentNode.getBoundingClientRect().left;
       } else {
         // an empty line has no text to measure, so find where its baseline would be
         const block = host.classList.contains('text') ? host : host.closest('p, li, div') || host;
@@ -1605,6 +1677,93 @@
     caretAtStart(li);
   }
 
+  // undo and redo for Paper's own list moves (Tab, shift-Tab, leaving or starting a list), which the browser's
+  // undo doesn't see. Each move is recorded as the changes it made, and ⌘Z plays them backwards, so the very
+  // same words come back and the browser can still undo what was typed before
+  let listUndo = null, listRedo = null;
+  const watch = new MutationObserver(() => {});
+  const caretNow = () => { const sel = getSelection(), r = sel.rangeCount ? sel.getRangeAt(0) : null; return r && [r.startContainer, r.startOffset, r.endContainer, r.endOffset]; };
+  function recordMove(fn) {
+    const before = caretNow();
+    watch.observe(ed, { childList: true, subtree: true, characterData: true, characterDataOldValue: true });
+    try { fn(); } finally {
+      const recs = watch.takeRecords();
+      watch.disconnect();
+      if (recs.length) {
+        const steps = recs.map((r) => ({ r, added: [...r.addedNodes], removed: [...r.removedNodes] }));
+        steps.forEach((st, k) => { if (st.r.type === 'characterData') st.after = steps.slice(k + 1).find((o) => o.r.target === st.r.target)?.r.oldValue ?? st.r.target.data; });
+        listUndo = { steps, before, after: caretNow() };
+        listRedo = null;
+      }
+    }
+  }
+  function replay(move, back) {
+    const put = (st, nodes) => { for (const n of nodes) st.r.target.insertBefore(n, st.r.nextSibling?.parentNode === st.r.target ? st.r.nextSibling : null); };
+    const steps = back ? [...move.steps].reverse() : move.steps;
+    for (const st of steps) {
+      if (st.r.type === 'characterData') { st.r.target.data = back ? st.r.oldValue : st.after; continue; }
+      (back ? st.added : st.removed).forEach((n) => n.remove());
+      put(st, back ? st.removed : st.added);
+    }
+    const c = back ? move.before : move.after;
+    if (c && c[0].isConnected && c[2].isConnected) try { placeCaret((x) => { x.setStart(c[0], c[1]); x.setEnd(c[2], c[3]); }); } catch {}
+    ed.dispatchEvent(new Event('input'));
+  }
+  ed.addEventListener('input', (e) => { if (e.isTrusted) listUndo = listRedo = null; }); // something else written since: the browser's own undo again
+  ed.addEventListener('keydown', (e) => {
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+    const move = e.shiftKey ? listRedo : listUndo;
+    if (!move) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    replay(move, !e.shiftKey);
+    if (e.shiftKey) { listRedo = null; listUndo = move; } else { listUndo = null; listRedo = move; }
+  });
+
+  // Tab: the item goes one level in, into a list at the end of the item above it (a list's first item stays).
+  // Paper moves items itself, since Safari's own indent and outdent leave lists and items inside each other
+  function indentItem(li) {
+    tidyBlocks();
+    const prev = li.previousElementSibling;
+    if (prev?.nodeName !== 'LI') return;
+    keepCaret(() => {
+      let sub = prev.lastElementChild;
+      if (!sub || !/^(UL|OL)$/.test(sub.nodeName)) { sub = document.createElement(li.parentNode.nodeName); prev.append(sub); }
+      sub.append(li);
+    });
+  }
+  // shift-Tab: one level out, just after the item it was in; the items after it come along beneath it.
+  // At the top level it stops being a list item
+  function outdentItem(li) {
+    tidyBlocks();
+    const listEl = li.parentNode, outer = listEl.parentNode;
+    if (outer.nodeName !== 'LI') return fromList(li);
+    keepCaret(() => {
+      const rest = [...listEl.children].slice([...listEl.children].indexOf(li) + 1);
+      if (rest.length) {
+        let sub = li.lastElementChild;
+        if (!sub || sub.nodeName !== listEl.nodeName) { sub = document.createElement(listEl.nodeName); li.append(sub); }
+        sub.append(...rest);
+      }
+      outer.after(li);
+      if (!listEl.children.length) listEl.remove();
+    });
+  }
+  // the items a selection covers, outermost first (an item inside another selected one moves with it)
+  function selectedItems() {
+    const sel = getSelection();
+    if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return [];
+    const r = sel.getRangeAt(0);
+    const own = new Set();
+    if (r.collapsed) { const n = r.startContainer; const li = (n.nodeType === 1 ? n : n.parentNode).closest('li'); if (li && ed.contains(li)) own.add(li); }
+    else {
+      for (const li of ed.querySelectorAll('li')) {
+        if ([...li.childNodes].some((n) => !/^(UL|OL)$/.test(n.nodeName) && r.intersectsNode(n))) own.add(li);
+      }
+    }
+    return [...own].filter((li) => ![...own].some((o) => o !== li && o.contains(li))); // an item inside another selected one moves with it
+  }
+
   // a list item becomes a paragraph again, splitting the list around it
   function fromList(li) {
     const listEl = li.parentNode;
@@ -1637,7 +1796,7 @@
       const tag = (c.before === '*' || c.before === '-') ? 'UL' : c.before === '1.' ? 'OL' : null;
       if (!tag) return;
       e.preventDefault();
-      toList(c.block, tag);
+      recordMove(() => toList(c.block, tag));
       saveDoc();
       return;
     }
@@ -1647,8 +1806,7 @@
       const c = caretContext();
       if (c && c.block.nodeName === 'LI' && c.before === '' && (e.key === 'Backspace' || c.block.textContent === '')) {
         e.preventDefault();
-        if (c.block.parentNode.parentNode !== ed) document.execCommand('outdent');
-        else fromList(c.block);
+        recordMove(() => outdentItem(c.block));
         saveDoc();
         return;
       }
@@ -1656,8 +1814,11 @@
 
     if (e.key === 'Tab') {
       e.preventDefault();
-      const c = caretContext();
-      if (c && c.block.nodeName === 'LI') document.execCommand(e.shiftKey ? 'outdent' : 'indent');
+      tidyBlocks();
+      const items = selectedItems();
+      if (!items.length) return;
+      recordMove(() => { if (e.shiftKey) [...items].reverse().forEach(outdentItem); else items.forEach(indentItem); });
+      ed.dispatchEvent(new Event('input')); // counts, pages and saving, as for typing
     }
   });
 

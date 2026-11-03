@@ -6,7 +6,7 @@ A quiet page for writing. It comes three ways, all saving to the same files in `
 - **The browser version**: http://localhost:4610, running while the Mac app is open (or with `node ~/Paper/app/server.js`).
 - **The website**: `~/Paper/site`, which saves in the browser itself.
 
-Move the mouse to the right edge of the window and click the **S** for the side bar: notes and to-dos for the paper you're on, the settings, the word count, export, and the tiny pages for all your papers.
+Move the mouse to the right edge of the window and click the **pencil** for the side bar: notes and to-dos for the paper you're on, the settings, the word count, export, and the tiny pages for all your papers.
 
 ## Shortcuts
 
