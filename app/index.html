@@ -82,7 +82,8 @@
   /* each line finds its own direction: Hebrew and Arabic run right to left, beside English */
   #editor p, #editor li, #notes p, #todos .text, .pg .t { unicode-bidi: plaintext; text-align: start; }
   #editor ul, #editor ol { margin: 0; padding-left: 2.1em; }
-  #editor li { padding-left: .3em; transform: translateX(0); } /* the transform does nothing you can see, but makes Safari fill a selection's wrapped lines from where the item's words start, not from the page's left edge */
+  #editor li { padding-left: .3em; }
+  #editor li::marker { line-height: 0; } /* Safari makes a bullet's line a pixel taller than the others; this keeps a list on the page's spacing */
   #editor ul ul, #editor ol ol, #editor ul ol, #editor ol ul { margin: 0; }
   #editor strike, #editor s { text-decoration-thickness: .07em; }
   #editor a { color: inherit; text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
@@ -121,6 +122,10 @@
   #find input { width: 190px; border: 0; outline: none; background: none; color: var(--ink); caret-color: transparent; font: 14px/1.4 var(--font); padding: 0; }
   #find span { font: 13px var(--font); color: #a8987f; white-space: nowrap; }
   /* the matches: soft marks laid over the words (multiplied, so the ink stays black), the current one stronger */
+  /* the page's selection is drawn by Paper (drawSelection), so Safari's own is kept clear */
+  #editor::selection, #editor ::selection { background: transparent; }
+  #selection { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; } /* just behind the words */
+  #selection i { position: absolute; background: rgba(112, 160, 70, .46); }
   #marks { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; mix-blend-mode: multiply; }
   #marks i { position: absolute; background: rgba(112, 160, 70, .24); }
   #marks i.now { background: rgba(112, 160, 70, .5); }
@@ -255,10 +260,10 @@
   #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 44px; cursor: pointer; z-index: 2; }
   #edge img {
     position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-    height: 20px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
+    height: 22px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
   }
-  #edge:hover img { opacity: .5; }
-  #edge img:hover { opacity: .8; }
+  #edge:hover img { opacity: .45; }
+  #edge img:hover { opacity: .72; }
   .open #edge { display: none; }
 
   #caret {
@@ -287,7 +292,7 @@
 
   <div id="page">
     <div id="sheets"></div>
-    <div id="lines"><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div></div>
+    <div id="lines"><div id="selection" aria-hidden="true"></div><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div></div>
   </div>
 
   <div id="edge"><img src="assets/icon-pencil.png" alt="" title="side bar"></div>
@@ -663,6 +668,7 @@
     root.style.setProperty('--lh', Math.round(s.size * 4 / 3 * s.spacing) + 'px');
     paintOptions();
     requestAnimationFrame(() => { fitBoxes(); alignArrows(); });
+    document.fonts?.ready.then(() => drawSelection()); // the words move under a selection when the font or size changes
   }
 
   function set(key, value) {
@@ -1129,17 +1135,94 @@
     document.execCommand('insertText', false, e.data === "'" ? (opens ? '\u2018' : '\u2019') : (opens ? '\u201c' : '\u201d'));
   }, true);
 
-  // Safari can leave a strip between two lines unpainted as a selection is dragged across them: repaint the page once it changes
-  let repaintFrame = 0, repaintFlip = false;
-  document.addEventListener('selectionchange', () => {
-    const sel = getSelection();
-    if (!sel.rangeCount || sel.isCollapsed || !ed.contains(sel.anchorNode)) return;
-    cancelAnimationFrame(repaintFrame);
-    repaintFrame = requestAnimationFrame(() => {
-      repaintFlip = !repaintFlip;
-      ed.style.backgroundColor = repaintFlip ? 'rgba(255, 255, 255, 0)' : 'rgba(0, 0, 0, 0)'; // clear either way, but a change, so it all paints again
+  // Safari paints a selection piece by piece (the words, the space beside them, the bullets), each a
+  // different shade, with white holes between. So the page's selection is drawn here instead, as one
+  // block: every line its full height so the lines meet, each from where its words start (the first
+  // from where the selection starts) and on to the column's edge (the last only as far as it goes)
+  const selLayer = $('selection');
+  let selFrame = 0;
+  function drawSelection() {
+    cancelAnimationFrame(selFrame);
+    selFrame = requestAnimationFrame(() => {
+      selLayer.textContent = '';
+      const sel = getSelection();
+      if (!sel.rangeCount || sel.isCollapsed || !ed.contains(sel.anchorNode) || ed.querySelector('sup.fn.picked')) return;
+      const r = sel.getRangeAt(0);
+      const blocks = new Map(); // each paragraph or item it touches: where its lines are, and which are selected
+      const info = (block) => {
+        if (!blocks.has(block)) {
+          const cs = getComputedStyle(block), box = block.getBoundingClientRect();
+          blocks.set(block, {
+            el: block,
+            top: box.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop),
+            left: box.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft),
+            right: box.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight),
+            lh: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4,
+            lines: new Map(),
+          });
+        }
+        return blocks.get(block);
+      };
+      const blockOf = (n) => (n.nodeType === 1 ? n : n.parentElement).closest('p, li') || ed;
+      // the words: each piece of text in the selection, a line at a time
+      const root = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentNode;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+        if (!r.intersectsNode(t)) continue;
+        const s = t === r.startContainer ? r.startOffset : 0, e = t === r.endContainer ? r.endOffset : t.length;
+        if (e <= s) continue;
+        const piece = document.createRange();
+        piece.setStart(t, s);
+        piece.setEnd(t, e);
+        const b = info(blockOf(t));
+        for (const q of piece.getClientRects()) {
+          if (!q.height || q.width < .5) continue; // a word at the start of a line also reports an empty sliver at the end of the line above
+          const k = Math.max(0, Math.floor(((q.top + q.bottom) / 2 - b.top) / b.lh));
+          const line = b.lines.get(k);
+          if (line) { line.left = Math.min(line.left, q.left); line.right = Math.max(line.right, q.right); }
+          else b.lines.set(k, { left: q.left, right: q.right });
+        }
+      }
+      // empty lines in it count too
+      for (const x of ed.querySelectorAll('p, li')) {
+        if (blocks.get(x)?.lines.size || r.comparePoint(x, 0) !== 0 || (r.endContainer === x && r.endOffset === 0)) continue;
+        let own = '';
+        for (const n of x.childNodes) if (!/^(UL|OL)$/.test(n.nodeName)) own += n.textContent;
+        if (own.replace(/\u200b/g, '')) continue;
+        const b = info(x);
+        b.lines.set(0, { left: b.left, right: b.left });
+      }
+      const rows = [];
+      for (const b of blocks.values()) {
+        if (!b.lines.size) continue;
+        const ks = [...b.lines.keys()];
+        for (let k = Math.min(...ks); k <= Math.max(...ks); k++) {
+          const l = b.lines.get(k) || { left: b.left, right: b.left }; // a line with nothing on it, between two that have
+          rows.push({ top: b.top + k * b.lh, bottom: b.top + (k + 1) * b.lh, left: l.left, right: l.right, b });
+        }
+      }
+      rows.sort((a, z) => a.top - z.top);
+      // a line meets the next one: a bullet's line can run a fraction taller than the spacing
+      rows.forEach((row, k) => { const next = rows[k + 1]; if (next && Math.abs(next.top - row.bottom) < row.b.lh / 2) row.bottom = next.top; });
+      const frag = document.createDocumentFragment(), at = selLayer.getBoundingClientRect();
+      rows.forEach((row, k) => {
+        const last = k === rows.length - 1;
+        let left = k ? row.b.left : row.left, right = !last || !row.b.el.contains(r.endContainer) ? row.b.right : row.right;
+        left = Math.max(left, row.b.left);
+        right = Math.min(Math.max(right, left), row.b.right);
+        const x = Math.round(left - at.left), y = Math.round(row.top - at.top);
+        const m = document.createElement('i');
+        m.style.cssText = `left:${x}px;top:${y}px;width:${Math.round(right - at.left) - x}px;height:${Math.round(row.bottom - at.top) - y}px`;
+        frag.append(m);
+      });
+      selLayer.append(frag);
     });
-  });
+  }
+  document.addEventListener('selectionchange', drawSelection);
+  ed.addEventListener('input', drawSelection);
+  window.addEventListener('resize', drawSelection);
+  new ResizeObserver(drawSelection).observe(ed);
+  document.fonts?.addEventListener('loadingdone', drawSelection); // a font arriving moves the words under it
 
   // paste as plain text, so the page stays one voice; a link pasted over selected words links them
   ed.addEventListener('paste', (e) => {
@@ -1177,6 +1260,9 @@
       if (intoItem(clean)) return;
       // one paragraph's worth goes into the line where the cursor is, not onto a new line
       const one = clean.children.length === 1 && clean.firstElementChild.nodeName === 'P' && !clean.firstElementChild.previousSibling && !clean.firstElementChild.nextSibling;
+      // more than that, pasted at the end of a line, starts on the next line rather than joining it
+      const c = caretContext();
+      if (!one && c?.before.replace(/\u200b/g, '').trim() && !c.after.replace(/\u200b/g, '').trim()) document.execCommand('insertParagraph');
       if (one && clean.querySelector('sup.fn')) {
         // with a footnote in it, put it in by hand: the browser's own insert misplaces uneditable pieces
         const sel = getSelection(), r = sel.getRangeAt(0);
@@ -1243,6 +1329,27 @@
       p.after(list);
       if (rest.childNodes.length) list.after(rest);
     }
+    // a line break at the very end of a line with words on it shows nothing, but catches the cursor (and
+    // pasting into an item leaves one): it goes. One that holds an empty line open stays
+    for (const br of [...ed.querySelectorAll('p br, li br')]) {
+      const block = br.parentElement.closest('p, li');
+      let end = true;
+      for (let n = br; n !== block && end; n = n.parentNode) {
+        for (let x = n.nextSibling; x; x = x.nextSibling) {
+          if (x.nodeType === 3 && !x.data.replace(/\u200b/g, '')) continue;
+          if (n.parentNode === block && /^(UL|OL)$/.test(x.nodeName)) break;
+          end = false;
+          break;
+        }
+      }
+      if (!end) continue;
+      let prev = br;
+      do { while (prev !== block && !prev.previousSibling) prev = prev.parentNode; if (prev === block) break; prev = prev.previousSibling; while (prev.lastChild) prev = prev.lastChild; } while (prev.nodeType === 3 && !prev.data);
+      const words = document.createRange();
+      words.setStart(block, 0);
+      words.setEndBefore(br);
+      if (prev !== block && prev.nodeName !== 'BR' && words.toString().replace(/\u200b/g, '').trim()) br.remove();
+    }
     const at = getSelection().anchorNode;
     for (const p of [...ed.querySelectorAll('p, li')]) { // nothing in it at all: no height, so it could never be clicked
       if (p.firstChild) continue;
@@ -1274,7 +1381,7 @@
     const n = getSelection().anchorNode, item = (n?.nodeType === 1 ? n : n?.parentElement)?.closest('li');
     if (!item || !ed.contains(item) || !clean.querySelector('li') || clean.querySelector('sup.fn')) return false;
     if (![...clean.children].every((n) => /^(P|UL|OL)$/.test(n.nodeName))) return false;
-    const lines = [];
+    const c = caretContext(), lines = [];
     for (const n of clean.children) {
       for (const x of n.nodeName === 'P' ? [n] : n.querySelectorAll('li')) {
         const c = x.cloneNode(true);
@@ -1282,7 +1389,9 @@
         if (c.textContent.trim()) lines.push(c.innerHTML);
       }
     }
-    lines.forEach((h, k) => { if (k) document.execCommand('insertParagraph'); document.execCommand('insertHTML', false, h); });
+    // at the end of an item with words in it, the first line starts a new item rather than joining it
+    const fresh = c?.before.replace(/\u200b/g, '').trim() && !c.after.replace(/\u200b/g, '').trim();
+    lines.forEach((h, k) => { if (k || fresh) document.execCommand('insertParagraph'); document.execCommand('insertHTML', false, h); });
     tidyLinks();
     tidyBlocks();
     return true;
@@ -1299,6 +1408,20 @@
     const DROP = /^(SCRIPT|STYLE|META|LINK|TITLE|HEAD|IMG|PICTURE|SVG|IFRAME|OBJECT|EMBED|VIDEO|AUDIO|CANVAS|BUTTON|INPUT|SELECT|TEXTAREA|NOSCRIPT|TEMPLATE)$/;
     const unwrap = (el) => el.replaceWith(...el.childNodes);
     const wrapIn = (el, tag) => { const w = doc.createElement(tag); el.before(w); w.append(el); return w; };
+    const before = (n) => { let x = n.previousSibling; while (x && x.nodeType === 3 && !x.data.trim()) x = x.previousSibling; return x; };
+    const fromPaper = !!body.querySelector('[data-paper]');
+
+    // Word writes a bullet as a paragraph with the bullet typed in front: it becomes a list item
+    for (const p of [...body.querySelectorAll('p[style*="mso-list"]')]) {
+      const mark = [...p.querySelectorAll('span')].find((x) => /mso-list:\s*ignore/i.test(x.getAttribute('style') || ''));
+      const tag = /^\s*(\d+|[a-z]|[ivxl]+)[.)]/i.test(mark?.textContent || '') ? 'ol' : 'ul';
+      mark?.remove();
+      const li = doc.createElement('li');
+      li.append(...p.childNodes);
+      const prev = before(p);
+      if (prev?.nodeName === tag.toUpperCase() && prev.hasAttribute('data-word')) { prev.append(li); p.remove(); }
+      else { const list = doc.createElement(tag); list.setAttribute('data-word', ''); p.replaceWith(list); list.append(li); }
+    }
 
     // 1. turn every element into one the page knows, or unwrap it
     for (const el of [...body.querySelectorAll('*')]) {
@@ -1332,6 +1455,8 @@
       if (keep) {
         const fresh = doc.createElement(keep);
         if (keep === 'a') fresh.setAttribute('href', href);
+        // a paragraph or heading the source set apart with space, not a line of a note (a div) or one set to none
+        if (keep === 'p' && /^(P|H[1-6]|BLOCKQUOTE|PRE)$/.test(tag) && !(/margin-top\s*:\s*0/i.test(style) && /margin-bottom\s*:\s*0/i.test(style))) fresh.setAttribute('data-para', '');
         fresh.append(...el.childNodes);
         el.replaceWith(fresh);
         node = fresh;
@@ -1372,6 +1497,11 @@
         wrapIn(n, 'li');
       }
     }
+    // lists of the same kind one after another are one list (Notion copies each item as its own)
+    for (const l of [...body.querySelectorAll('ul, ol')].reverse()) {
+      const prev = before(l);
+      if (prev?.nodeName === l.nodeName && l.parentNode === prev.parentNode) { prev.append(...l.childNodes); l.remove(); }
+    }
     // loose text and inline bits at the top level become paragraphs
     let run = null;
     for (const n of [...body.childNodes]) {
@@ -1385,6 +1515,29 @@
     const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
     for (let t = walker.nextNode(); t; t = walker.nextNode()) t.data = t.data.replace(/[ \t\r\n]+/g, ' ');
     for (const el of [...body.querySelectorAll('b, i, u, s')]) if (!el.textContent && !el.querySelector('sup')) el.remove();
+    const blank = (n) => n.nodeName === 'P' && !n.textContent.trim() && !n.querySelector('sup');
+    // no spaces at the start or end of a line, and a line of nothing but spaces is an empty line
+    for (const b of body.querySelectorAll('p, li')) {
+      const mine = [];
+      const w = doc.createTreeWalker(b, NodeFilter.SHOW_TEXT);
+      for (let t = w.nextNode(); t; t = w.nextNode()) if (t.parentElement.closest('p, li') === b) mine.push(t);
+      if (mine.length) { mine[0].data = mine[0].data.replace(/^\s+/, ''); mine.at(-1).data = mine.at(-1).data.replace(/\s+$/, ''); }
+      if (b.nodeName === 'P' && !b.textContent.trim() && !b.querySelector('sup')) b.innerHTML = '<br>';
+    }
+    // empty lines at the very start or end of what was copied (Safari and Google Docs add one) don't come
+    while (body.firstElementChild && blank(body.firstElementChild) && body.children.length > 1) body.firstElementChild.remove();
+    while (body.lastElementChild && blank(body.lastElementChild) && body.children.length > 1) body.lastElementChild.remove();
+    // paragraphs the source set apart with space are set apart here by an empty line, as the page does it,
+    // unless the paste brings its own empty lines (or comes from Paper, which always does)
+    const spaced = (n) => n.nodeType === 1 && (n.hasAttribute('data-para') || /^(UL|OL)$/.test(n.nodeName));
+    if (!fromPaper && ![...body.children].some(blank)) {
+      for (const n of [...body.children]) {
+        const next = n.nextElementSibling;
+        if (next && spaced(n) && spaced(next) && (n.hasAttribute('data-para') || next.hasAttribute('data-para'))) n.after(doc.createElement('p'));
+      }
+      body.querySelectorAll('p:empty').forEach((p) => { p.innerHTML = '<br>'; });
+    }
+    body.querySelectorAll('[data-para], [data-word]').forEach((el) => { el.removeAttribute('data-para'); el.removeAttribute('data-word'); });
     return body.innerHTML;
   }
 
@@ -1491,6 +1644,7 @@
       const fixed = field === notes || field === list; // the side bar stays put; the page and its footnotes scroll
       const sx = fixed ? 0 : scrollX, sy = fixed ? 0 : scrollY;
       caretMark.style.position = fixed ? 'fixed' : 'absolute';
+      caretMark.style.zIndex = '';
       let top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1), height = h;
       if (fixed) {
         // the cursor lives inside its box: where the notes or to-dos scroll past their edge, it's cut off
@@ -1534,6 +1688,7 @@
     const baseline = box.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop) + (inner - (m.boxAscent + m.boxDescent)) / 2 + m.boxAscent;
     const letters = m.ascender + m.descender;
     caretMark.style.position = 'fixed';
+    caretMark.style.zIndex = 5; // above the box it's in
     caretMark.style.left = Math.round(Math.min(left, box.right - parseFloat(cs.paddingRight))) + 'px';
     caretMark.style.top = Math.round(baseline - m.ascender - m.descender * .45 - letters * .1) + 'px';
     caretMark.style.height = Math.round(letters * 1.2) + 'px';
@@ -1660,7 +1815,10 @@
     const pre = document.createRange();
     pre.selectNodeContents(block);
     pre.setEnd(r.startContainer, r.startOffset);
-    return { block, before: pre.toString() };
+    const post = document.createRange();
+    post.selectNodeContents(block);
+    post.setStart(r.startContainer, r.startOffset);
+    return { block, before: pre.toString(), after: post.toString() };
   }
 
   // a paragraph becomes a list item, joining the list right above it if there is one
@@ -2509,7 +2667,7 @@
       else { lines.push(textOf(n)); open = true; }
     }
     e.preventDefault();
-    e.clipboardData.setData('text/html', `<meta charset="utf-8"><div>${html}</div>`);
+    e.clipboardData.setData('text/html', `<meta charset="utf-8"><div data-paper="1">${html}</div>`); // marked, so a paste back keeps its spacing exactly
     e.clipboardData.setData('text/plain', lines.join('\n'));
     if (cut) { if (inside) inside.remove(); else document.execCommand('delete'); layoutNotes(); recount(); saveDoc(); }
   }

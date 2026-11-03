@@ -82,6 +82,7 @@ Move the mouse to the right edge of the window and click the **pencil** for the 
 
 - **Copying out** keeps bold, italic, underline, links, lists and empty lines in apps that take formatting. Plain-text apps get a line per paragraph, with the empty lines kept.
 - **Pasting in** keeps bold, italic, links and lists, but drops other fonts and colours so the page stays one voice. Markdown pasted as plain text is turned into formatting.
+- **Spacing** follows the page: paragraphs that were set apart where you copied them get an empty line between them, list items sit close together, stray spaces at the ends of lines go, and paragraphs pasted at the end of a line start on the next one. Word's bullets become a real list.
 - **Footnotes** copy with their notes and paste back as footnotes.
 
 ## Where things are saved
