@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Paper</title>
-<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<meta name="theme-color" content="#f3efe6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Paper">
+<link rel="apple-touch-icon" href="assets/app-icon-180.png">
 <link rel="stylesheet" href="assets/PaperHand.css">
 <style>
   :root {
@@ -20,7 +23,10 @@
     --font: "Times New Roman", Times, serif;
     --ease: cubic-bezier(.2, .8, .2, 1);
   }
-  [data-font="inter"] { --font: InterVariable, Inter, system-ui, sans-serif; }
+  /* Inter is Rasmus Andersson's InterVariable 4.0 (rsms.me/inter), kept in assets so it works offline; licence in assets/Inter-OFL.txt */
+  @font-face { font-family: InterVariable; font-style: normal; font-weight: 100 900; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
+  @font-face { font-family: InterVariable; font-style: italic; font-weight: 100 900; font-display: swap; src: url("assets/InterVariable-Italic.woff2") format("woff2"); }
+  [data-font="inter"] { --font: InterVariable, system-ui, sans-serif; }
   [data-font="helvetica"] { --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
   [data-font="palatino"] { --font: Palatino, "Palatino Linotype", "Book Antiqua", serif; }
 
@@ -83,6 +89,9 @@
   #editor p, #editor li, #notes p, #todos .text, .pg .t { unicode-bidi: plaintext; text-align: start; }
   #editor ul, #editor ol { margin: 0; padding-left: 2.1em; }
   #editor li { padding-left: .3em; }
+  /* bullets: a short hand-drawn dash at 45% ink, centred where the usual bullet sits */
+  #editor ul > li { list-style: none; position: relative; }
+  #editor ul > li::before { content: ''; position: absolute; left: -1.065em; top: calc(var(--lh) / 2 - .03em); width: .49em; height: .16em; background: url(assets/bullet-dash.png) center / contain no-repeat; opacity: .45; pointer-events: none; }
   #editor li::marker { line-height: 0; } /* Safari makes a bullet's line a pixel taller than the others; this keeps a list on the page's spacing */
   #editor ul ul, #editor ol ol, #editor ul ol, #editor ol ul { margin: 0; }
   #editor strike, #editor s { text-decoration-thickness: .07em; }
@@ -220,11 +229,11 @@
 
   /* the word count, and export (or, on the website, the app download) */
   .tail { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-top: 28px; }
-  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: #000; user-select: none; white-space: nowrap; }
+  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: rgba(0, 0, 0, .7); user-select: none; white-space: nowrap; }
   .tools { display: flex; align-items: center; gap: 16px; }
   #export { display: flex; align-items: center; gap: 12px; }
   #papersBtn { display: block; height: 16px; width: auto; cursor: pointer; }
-  .papers-view #papersBtn { height: 11px; } /* the back arrow */
+  .papers-view #papersBtn { height: 10.75px; } /* the back arrow, drawn with a finer pen */
   #papersBtn:hover, #papersBtn:active { opacity: .6; }
 
   /* papers: the side bar becomes a little desk of tiny pages; click one to open it */
@@ -240,9 +249,10 @@
   .pg.on { border-color: rgba(0, 0, 0, .8); }
   /* hovering a tiny page shows a light X in its top corner: click it to take the paper off the tiny pages (kept in ~/Paper/removed) */
   .pg { position: relative; }
-  .pg .del { position: absolute; right: 3px; top: 3px; height: 8px; width: auto; padding: 4px; box-sizing: content-box; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
-  .pg:hover .del { opacity: 1; } /* a dark green, from the highlight */
-  .pg .del:hover { filter: brightness(.6); }
+  .pg .del { position: absolute; right: 3px; top: 3px; padding: 4px; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
+  .pg .del img { display: block; height: 8px; width: auto; opacity: .4; transition: opacity .15s; }
+  .pg:hover .del { opacity: 1; } /* a grey X */
+  .pg .del:hover img { opacity: .8; } /* only the X darkens, not the paper behind it */
   .pg .t {
     display: block; white-space: pre-line; /* each paragraph on its own line; fitted to the page by fitPreview() */
     font: 400 15px/1.2 "Paper Hand", var(--font); color: rgba(0, 0, 0, .9); overflow-wrap: anywhere;
@@ -255,15 +265,13 @@
   #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; text-decoration: none; }
   #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: .6; }
 
-  /* a hand-drawn pencil at the middle of the right edge, shown when you come near it, opens the side bar;
-     darker still when you're right on it */
-  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 44px; cursor: pointer; z-index: 2; }
+  /* a small hand-drawn asterisk at the middle of the right edge, shown when you come near it, opens the side bar */
+  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 50.6px; cursor: pointer; z-index: 2; }
   #edge img {
-    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-    height: 22px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
+    position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+    height: 21.6px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
   }
-  #edge:hover img { opacity: .45; }
-  #edge img:hover { opacity: .72; }
+  #edge:hover img { opacity: .54; }
   .open #edge { display: none; }
 
   #caret {
@@ -295,7 +303,7 @@
     <div id="lines"><div id="selection" aria-hidden="true"></div><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div></div>
   </div>
 
-  <div id="edge"><img src="assets/icon-pencil.png" alt="" title="side bar"></div>
+  <div id="edge"><img src="assets/icon-asterisk.png" alt="" title="side bar"></div>
   <aside id="bar">
     <section id="notesWrap">
       <h2>Notes</h2>
@@ -334,6 +342,16 @@
   if (native) document.documentElement.classList.add('native');
   const onServer = !native && ['localhost', '127.0.0.1'].includes(location.hostname);
   const onWeb = !native && !onServer;
+  // on the website, papers live in this browser's own storage. Ask for it to be kept for good, and make the
+  // site installable (Home Screen, or File › Add to Dock): Safari clears an ordinary site's storage after
+  // 7 days without a visit, but never an installed one's. The service worker lets it open offline once installed
+  if (onWeb && location.protocol === 'https:') {
+    const m = document.createElement('link');
+    m.rel = 'manifest'; m.href = 'manifest.webmanifest';
+    document.head.append(m);
+    navigator.storage?.persist?.().catch(() => {});
+    navigator.serviceWorker?.register('sw.js').catch(() => {});
+  }
   const ask = (msg) => native.postMessage(msg).catch(() => null);
   const local = {
     get: (k) => { try { return localStorage.getItem('paper.' + k); } catch { return null; } },
@@ -452,7 +470,8 @@
   const RANGE = { size: [10, 30, 1], spacing: [1, 2, .1] }; // size in points, as in Pages and Word
   const SHOW = { size: (v) => String(v), spacing: (v) => v.toFixed(1) };
   const snap = (k, v) => { const [a, b, st] = RANGE[k]; return +Math.min(b, Math.max(a, Math.round(v / st) * st)).toFixed(2); };
-  // settings saved before these choices existed land on the nearest one
+  // settings saved before these choices existed land on the nearest one (System, briefly a choice, was Inter)
+  if (s.font === 'system') s.font = 'inter';
   if (!CHOICES.font.some(([v]) => v === s.font)) s.font = DEFAULTS.font;
   if (!CHOICES.paper.some(([v]) => v === s.paper)) s.paper = DEFAULTS.paper;
   for (const k of Object.keys(RANGE)) s[k] = snap(k, +s[k] || DEFAULTS[k]);
@@ -932,15 +951,15 @@
       t.textContent = blank ? 'untitled' : p.first.replace(/^[\s\u200b]+/, ''); // the words start at the top of the tiny page, whatever space is above them
       el.append(t);
       if (p.name !== 'page') { // the first paper stays
-        const del = document.createElement('img');
+        const del = document.createElement('span');
         del.className = 'del';
-        del.src = 'assets/icon-remove.png';
-        del.alt = del.title = 'remove';
-        del.onclick = (e) => { e.stopPropagation(); deletePaper(p, true); };
+        del.title = 'remove';
+        del.innerHTML = '<img src="assets/icon-remove.png" alt="remove">';
+        del.onclick = (e) => { e.stopPropagation(); deletePaper(p, true, el); };
         el.append(del);
       }
       el.onclick = async () => { if (p.name !== docName) await openDoc(p.name); toggleBar(false); }; // straight to the paper, side bar closed
-      el.oncontextmenu = (e) => { e.preventDefault(); pageMenu(e, p); };
+      el.oncontextmenu = (e) => { e.preventDefault(); pageMenu(e, p, el); };
       grid.append(el);
     }
     grid.append(plus);
@@ -951,7 +970,7 @@
   const menu = document.createElement('div');
   menu.id = 'pagemenu';
   document.body.append(menu);
-  function pageMenu(e, p) {
+  function pageMenu(e, p, el) {
     menu.innerHTML = '';
     const item = (label, fn) => { const b = document.createElement('div'); b.textContent = label; b.onclick = async (ev) => { ev.stopPropagation(); closeMenu(); await fn(); }; menu.append(b); };
     item('Duplicate', async () => {
@@ -967,21 +986,37 @@
       if (t.trim()) files.put('todo-' + name, t);
       setTimeout(() => showPapers(true), 150);
     });
-    if (p.name !== 'page') item('Delete', () => deletePaper(p));
+    if (p.name !== 'page') item('Delete', () => deletePaper(p, false, el));
     menu.style.left = Math.min(e.clientX, innerWidth - 130) + 'px';
     menu.style.top = Math.min(e.clientY, innerHeight - 70) + 'px';
     menu.classList.add('show');
   }
   // off the tiny pages: the X keeps it in ~/Paper/removed, Delete moves it to the Trash; either way it can be got back.
   // Taking off the paper you're on opens the most recent other one
-  async function deletePaper(p, away) {
-    await (away ? files.putAway(p.name) : files.trash(p.name));
+  async function deletePaper(p, away, el) {
+    await Promise.all([away ? files.putAway(p.name) : files.trash(p.name), el && fadeAway(el)]);
     status(p.name.startsWith('file-') ? 'Taken off the list' : away ? 'Removed' : 'Moved to Trash'); // a file opened from Finder stays where it is
     if (p.name === docName) {
       const rest = (await files.list()).filter((x) => x.name !== p.name).sort((a, b) => b.modified - a.modified);
       await openDoc(rest[0]?.name || 'page');
     }
-    setTimeout(() => showPapers(true), 150);
+    showPapers(true);
+  }
+  // the tiny page fades and sinks away, then the pages after it slide up into its place
+  async function fadeAway(el) {
+    const rest = [...el.parentNode.children].filter((x) => x !== el);
+    const was = new Map(rest.map((x) => [x, x.getBoundingClientRect()]));
+    el.style.pointerEvents = 'none';
+    await el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.9) translateY(4px)' }],
+      { duration: 280, easing: 'ease-in', fill: 'forwards' }).finished;
+    el.remove();
+    const moves = rest.map((x) => {
+      const a = was.get(x), b = x.getBoundingClientRect();
+      if (a.left === b.left && a.top === b.top) return null;
+      return x.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: 'none' }],
+        { duration: 360, easing: 'cubic-bezier(.2, .7, .2, 1)' }).finished;
+    });
+    await Promise.all(moves);
   }
   const closeMenu = () => menu.classList.remove('show');
   document.addEventListener('mousedown', (e) => { if (!menu.contains(e.target)) closeMenu(); }, true);
@@ -1136,9 +1171,10 @@
   }, true);
 
   // Safari paints a selection piece by piece (the words, the space beside them, the bullets), each a
-  // different shade, with white holes between. So the page's selection is drawn here instead, as one
-  // block: every line its full height so the lines meet, each from where its words start (the first
-  // from where the selection starts) and on to the column's edge (the last only as far as it goes)
+  // different shade, with white holes between. So the page's selection is drawn here instead, the way
+  // Google Docs and Word draw it: on each line, just the selected words, but every line its full height so
+  // the lines meet with no gaps; an empty line, or the end of a paragraph the selection runs past, shows
+  // a space's width
   const selLayer = $('selection');
   let selFrame = 0;
   function drawSelection() {
@@ -1158,6 +1194,7 @@
             left: box.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft),
             right: box.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight),
             lh: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4,
+            space: parseFloat(cs.fontSize) * .3,
             lines: new Map(),
           });
         }
@@ -1198,7 +1235,7 @@
         const ks = [...b.lines.keys()];
         for (let k = Math.min(...ks); k <= Math.max(...ks); k++) {
           const l = b.lines.get(k) || { left: b.left, right: b.left }; // a line with nothing on it, between two that have
-          rows.push({ top: b.top + k * b.lh, bottom: b.top + (k + 1) * b.lh, left: l.left, right: l.right, b });
+          rows.push({ top: b.top + k * b.lh, bottom: b.top + (k + 1) * b.lh, left: l.left, right: l.right, b, end: k === Math.max(...ks) });
         }
       }
       rows.sort((a, z) => a.top - z.top);
@@ -1206,8 +1243,9 @@
       rows.forEach((row, k) => { const next = rows[k + 1]; if (next && Math.abs(next.top - row.bottom) < row.b.lh / 2) row.bottom = next.top; });
       const frag = document.createDocumentFragment(), at = selLayer.getBoundingClientRect();
       rows.forEach((row, k) => {
-        const last = k === rows.length - 1;
-        let left = k ? row.b.left : row.left, right = !last || !row.b.el.contains(r.endContainer) ? row.b.right : row.right;
+        // the line break at the end of a paragraph is selected too when the selection runs on past it
+        const runsOn = row.end && (k < rows.length - 1 || !row.b.el.contains(r.endContainer));
+        let left = row.left, right = row.right + (runsOn || row.right - row.left < 1 ? row.b.space : 0);
         left = Math.max(left, row.b.left);
         right = Math.min(Math.max(right, left), row.b.right);
         const x = Math.round(left - at.left), y = Math.round(row.top - at.top);
@@ -1285,7 +1323,30 @@
   // keep the page's shape whole after a paste, and in papers a paste once left broken: list items only
   // inside a list, no paragraph inside a paragraph or a list item, and no paragraph with nothing at all
   // in it (it has no height, so it could never be clicked into)
-  function tidyBlocks() { keepCaret(tidyNow); }
+  function tidyBlocks() { looseInLists(); keepCaret(tidyNow); }
+  // a line left loose in a list (deleting a whole item leaves an empty line there, outside any item):
+  // it becomes an item again, with the cursor in it rather than lost between the items
+  function looseInLists() {
+    const sel = getSelection(), r = sel.rangeCount ? sel.getRangeAt(0) : null;
+    for (const l of ed.querySelectorAll('ul, ol')) {
+      let run = [];
+      const wrap = () => {
+        if (run.some((n) => n.nodeType !== 3 || n.data.trim())) {
+          const at = r && r.collapsed && r.startContainer === l ? [...l.childNodes].indexOf(run[0]) : -1, off = r?.startOffset; // read before the move shifts it
+          const li = document.createElement('li');
+          run[0].before(li);
+          li.append(...run);
+          if (at >= 0 && off >= at && off <= at + run.length) placeCaret((x) => { x.setStart(li, off - at); x.collapse(true); });
+        }
+        run = [];
+      };
+      for (const n of [...l.childNodes]) {
+        if (/^(LI|UL|OL)$/.test(n.nodeName)) wrap();
+        else run.push(n);
+      }
+      wrap();
+    }
+  }
   function tidyNow() {
     // an item inside another item (Safari's outdent leaves these): it comes out just after it, and what
     // followed it comes too, so a list after it stays beneath it
