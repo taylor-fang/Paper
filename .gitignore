@@ -1,8 +1,9 @@
-# Only the app's source, the README and the licence are shared.
+# Only the app's source, the README's pictures (media), the README and the licence are shared.
 # Everything else in ~/Paper is your own writing (papers, notes, to-dos, history, removed),
 # the built website, or experiments, and stays on this Mac.
 /*
 !/app/
+!/media/
 !/README.md
 !/LICENSE
 !/.gitignore
