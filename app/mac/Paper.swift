@@ -10,8 +10,8 @@
 //   ~/Paper/.history/<date>/   each file as it was before that day's first change
 //
 // File › New Paper (⌘N) opens a new window with a new paper; File › Show in Finder
-// reveals the paper in the front window. The side bar's pages icon lists them all, and so does a
-// right-click on the Dock icon.
+// reveals the paper in the front window. The side bar's pages icon lists them all; a right-click on the
+// Dock icon lists the open ones.
 //
 // Any .html or .md file can be opened from Finder (Open With › Paper) and is edited where it
 // is: a markdown file is saved back as markdown; an HTML file keeps its <head> and styles and
@@ -397,50 +397,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSWorkspace.shared.activateFileViewerSelecting([u])
     }
 
-    // right-click the Dock icon: every paper, the most recently written first, by its first line
-    // (a tick beside the ones already open); pick one to open it, or bring its window forward
+    // right-click the Dock icon: macOS lists the open papers' windows by their titles (each window's title is its
+    // paper's first line); below them, New Paper
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        let papers = Store.list().sorted { ($0["modified"] as? Double ?? 0) > ($1["modified"] as? Double ?? 0) }
-        for entry in papers {
-            guard let name = entry["name"] as? String else { continue }
-            let item = NSMenuItem(title: dockTitle(entry, name: name), action: #selector(openFromDock(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = name
-            if windows.contains(where: { $0.paper == name }) { item.state = .on }
-            menu.addItem(item)
-        }
-        if !papers.isEmpty { menu.addItem(.separator()) }
         let new = NSMenuItem(title: "New Paper", action: #selector(newPaper(_:)), keyEquivalent: "")
         new.target = self
         menu.addItem(new)
         return menu
-    }
-
-    // a paper's name in the Dock menu: its first line with words on it, cut short; a file opened from Finder
-    // with nothing written yet goes by its file name
-    func dockTitle(_ entry: [String: Any], name: String) -> String {
-        var text = entry["first"] as? String ?? ""
-        if let md = entry["md"] as? String { // markdown: without its marks
-            text = md.replacingOccurrences(of: "(?m)^\\s*(#+|[-*+]|\\d+\\.|>)\\s+", with: "", options: .regularExpression)
-                .replacingOccurrences(of: "[*_`~]|\\[\\^?[^\\]]*\\]:.*|\\[([^\\]]*)\\]\\([^)]*\\)", with: "$1", options: .regularExpression)
-        }
-        var line = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty } ?? ""
-        if line.isEmpty, Store.isFileName(name), let u = Store.url(name) { line = u.lastPathComponent }
-        if line.isEmpty { return "Untitled" }
-        return line.count > 48 ? String(line.prefix(47)).trimmingCharacters(in: .whitespaces) + "…" : line
-    }
-
-    @objc func openFromDock(_ sender: NSMenuItem) {
-        guard let name = sender.representedObject as? String else { return }
-        if let already = windows.first(where: { $0.paper == name }) {
-            if already.window.isMiniaturized { already.window.deminiaturize(nil) }
-            already.window.makeKeyAndOrderFront(nil)
-        } else {
-            let pw = open(paper: name)
-            if windows.count == 1 { pw.window.center(); pw.window.setFrameAutosaveName("Paper") }
-        }
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

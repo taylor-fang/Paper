@@ -38,6 +38,8 @@
   * { scrollbar-width: none; }
   *::-webkit-scrollbar { display: none; width: 0; height: 0; }
   html, body { margin: 0; min-height: 100%; }
+  /* the typing cursor everywhere, the margins and side bar too; only things you click show the hand */
+  html { cursor: text; }
   body {
     background: var(--paper);
     color: var(--ink);
@@ -101,6 +103,7 @@
   #editor strike, #editor s { text-decoration-thickness: .07em; }
   #editor a { color: inherit; text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
   #editor a:hover { text-decoration-color: var(--soft); }
+  #editor a.out { cursor: pointer; user-select: none; -webkit-user-select: none; } /* About Paper's repo link: a click opens it, it isn't edited */
 
   /* ⌘K: a quiet line to paste a link into */
   #linkbox {
@@ -200,7 +203,7 @@
   #notes p { margin: 0 0 .35em; }
 
   /* to-dos: your hand-drawn box, and a quick tick when done */
-  #todos { list-style: none; margin: 0; padding: 0; overflow-y: auto; outline: none; caret-color: transparent; }
+  #todos { list-style: none; margin: -5px 0 0 -6px; padding: 5px 0 0 6px; overflow-y: auto; outline: none; caret-color: transparent; } /* room inside its scrolling edge for the boxes' wider click area */
   #notes, #todos, .pgrid { overscroll-behavior: contain; } /* scrolling stops at their ends, never moving the page behind */
   #todos li { position: relative; display: flex; align-items: flex-start; gap: .55em; font-size: calc(18px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
   #todos .text { flex: 1; min-width: 0; outline: none; caret-color: transparent; font: inherit; color: rgba(0, 0, 0, .9); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -209,6 +212,7 @@
   #todos .strike path { fill: none; stroke: #000; stroke-width: 1; }
   /* sized and placed by fitBoxes(): its top meets the top of the capitals, its bottom just below the line */
   .check { flex: none; position: relative; padding: 0; border: 0; background: none; cursor: pointer; }
+  .check::after { content: ''; position: absolute; inset: -5px -4px -5px -6px; } /* a little room around the box that still ticks it */
   .check img { position: absolute; left: 0; top: 0; display: block; height: 100%; width: auto; opacity: .6; }
   /* the tick is one of five from your own hand, on a canvas with room above and to the right of
      the box (22px of 147 tall, 22 of 158 wide), turning and growing about its own point */
@@ -281,10 +285,10 @@
 
   /* a thin five-armed asterisk (Helvetica's, at half its stroke) in sepia (#8c6640, a little lighter than the side bar's)
      at the middle of the right edge, shown when you come near it, opens the side bar */
-  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 72.8px; cursor: pointer; z-index: 2; }
+  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 72.8px; cursor: text; z-index: 2; }
   #edge img {
     position: absolute; right: 19.8px; top: 50%; transform: translateY(-50%);
-    height: 16.9px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
+    height: 16.9px; width: auto; padding: 12px; margin-right: -8px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
   }
   #edge:hover img { opacity: 1; }
   .open #edge { display: none; }
@@ -496,10 +500,12 @@
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
   // each paper keeps its own size
   if (!s.sizes) s.sizes = { full: 12, sheet: 12 };
+  // the first size used to be 15 (14 on a leaf); anyone still there moves to the new 12, once
+  if (!s.size12) { if (s.sizes.full === 15) s.sizes.full = 12; if (s.sizes.sheet === 14) s.sizes.sheet = 12; s.size12 = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
   s.size = s.sizes[s.paper] ?? DEFAULTS.size;
 
   const CHOICES = {
-    font: [['times', 'Times'], ['inter', 'Inter'], ['helvetica', 'Helvetica'], ['palatino', 'Palatino']],
+    font: [['inter', 'Inter'], ['helvetica', 'Helvetica'], ['times', 'Times'], ['palatino', 'Palatino']],
     paper: [['full', 'Open'], ['sheet', 'Leaf']],
   };
   const RANGE = { size: [8, 30, 1], spacing: [1, 2, .1] }; // size in points, as in Pages and Word
@@ -1133,6 +1139,7 @@
 
   // the first time Paper opens (the app, the browser version or the website), the first paper is About Paper;
   // it's ordinary text, delete it and it's gone
+  const REPO = 'https://github.com/taylor-fang/Paper';
   const STARTER = `<u>*About Paper*</u>
 
 
@@ -1145,16 +1152,16 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 <u>How to use Paper</u>
 
 
-A sidebar shows up at **hover on the right**. The sidebar includes sections for:
+***Hover on the right to see the sidebar:***
 
 
-- *Scratchpad.* Jot down notes or questions that arise which don’t fit anywhere yet.
-- *To-do*. Outline and divide writing into chunks, with a satisfying check for each section completed.
-- *Visual assist.* Write with huge fontsize & spacing when you need to feel a sense of progress, or 10pt & single-space when you need to see the shape.
+- *Scratchpad.* Jot down notes or questions.
+- *Ta-da.* Outline and divide writing into chunks (and get gold stars!)
+- *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
 - *File management.* Export into .md or .docx, and see all your writing on tiny papers.
 
 
-Click anywhere on the screen to start writing. Writing auto-saves, and you can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For the **open-source repo**, see [here](https://github.com/taylor-fang/Paper).
+You can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
 
 
 I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.`;
@@ -1197,10 +1204,11 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    const starter = touch ? STARTER.replace('at **hover on the right**', 'when you **tap on the right**') : STARTER;
+    const starter = touch ? STARTER.replace('Hover on the right', 'Tap on the right') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
+    if (name === 'page') ed.querySelectorAll(`a[href="${REPO}"]`).forEach((a) => { a.contentEditable = 'false'; a.classList.add('out'); });
     if (firstVisit) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
     await loadSide(name);
     if (firstVisit) { // a note to start, and on the website a to-do for the Mac app
@@ -1998,7 +2006,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
   // ⌘-click opens a link; a plain click just puts the caret there, like any other word
   ed.addEventListener('click', (e) => {
     const a = e.target.closest('a');
-    if (a && (e.metaKey || e.ctrlKey)) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); }
+    if (a && (e.metaKey || e.ctrlKey || a.classList.contains('out'))) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); } // About Paper's repo link: one click
   });
 
   // with the cursor in a link, its address shows underneath
@@ -2007,7 +2015,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
   function showLinkTip() {
     const sel = getSelection();
     const a = !linkRange && sel.rangeCount && sel.isCollapsed && ed.contains(sel.anchorNode) ? linkAt(sel.getRangeAt(0)) : null;
-    if (!a) { linkTip.classList.remove('show'); tipFor = null; return; }
+    if (!a || a.classList.contains('out')) { linkTip.classList.remove('show'); tipFor = null; return; }
     tipFor = a;
     tipUrl.textContent = a.getAttribute('href').replace(/^mailto:/, '');
     const rects = a.getClientRects();
