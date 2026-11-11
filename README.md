@@ -1,4 +1,13 @@
-# Paper
+<p align="center"><img src="media/icon.png" width="96" alt=""></p>
+
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="media/title-dark.png">
+    <img src="media/title-light.png" alt="Paper" height="64">
+  </picture>
+</h1>
+
+<p align="center"><img src="media/screenshot.png" alt="Paper open on its About page: a calm, warm page of writing with nothing else on screen" width="860"></p>
 
 Paper is a surface for writers.
 
