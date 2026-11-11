@@ -1,0 +1,9 @@
+# Only the app's source, the README and the licence are shared.
+# Everything else in ~/Paper is your own writing (papers, notes, to-dos, history, removed),
+# the built website, or experiments, and stays on this Mac.
+/*
+!/app/
+!/README.md
+!/LICENSE
+!/.gitignore
+.DS_Store
