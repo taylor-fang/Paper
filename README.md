@@ -1,9 +1,7 @@
-<p align="center"><img src="media/icon.png" width="96" alt=""></p>
-
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="media/title-dark.png">
-    <img src="media/title-light.png" alt="Paper" height="64">
+    <img src="media/title-light.png" alt="Paper" height="32">
   </picture>
 </h1>
 
