@@ -5,7 +5,7 @@
   </picture>
 </h1>
 
-<p align="center"><img src="media/paper-window.jpg" alt="Paper in a window on a Mac desktop: a calm, warm page of writing, with nothing else on it" width="860"></p>
+<p align="center"><img src="media/paper.jpg" alt="Paper in a window on a Mac desktop: a calm, warm page of writing, with nothing else on it" width="860"></p>
 
 Paper is a surface for writers.
 
@@ -26,22 +26,18 @@ A sidebar shows up at hover on the right. The sidebar includes sections for:
 
 - **Scratchpad.** Jot down notes or questions that arise which don’t fit anywhere yet.
 - **To-do.** Outline and divide writing into chunks, with a satisfying check for each section completed.
-- **Visual assist.** Write with huge font size & spacing when you need to feel a sense of progress, or 10pt & single-space when you need to see the shape. Click the settings to cycle through a small palette of options.
+- **Visual assist.** Click the settings to cycle through a small palette of options.
 - **File management.** Export into **.md or .docx**, and see all your writing on tiny papers.
 
-Click anywhere on the screen to start writing. Writing **auto-saves**, and you can use all the regular **keyboard shortcuts** to italicize, bold, copy, link, undo, footnote, etc. See [All Shortcuts](#all-shortcuts) for a full list.
+Writing auto-saves and you can use the regular keyboard shortcuts (see [All Shortcuts](#all-shortcuts)) to italicize, bold, copy, link, undo, footnote, etc.
 
 ## Saving Papers
 
-On the website, papers are saved in your browser’s own storage. Adding Paper to your [Dock on a Mac](https://support.apple.com/guide/safari/add-to-dock-ibrw9e991864/mac) or your [iPhone's Home Screen](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios) stops Safari from clearing it on its own.
+On the website, papers are saved in your browser’s own storage. Adding Paper to your [Dock](https://support.apple.com/guide/safari/add-to-dock-ibrw9e991864/mac) (on Mac) or [Home Screen](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios) (on iPhone) stops Safari from clearing it on its own.
 
-In the Mac app, papers are saved as files in the `~/Paper` folder, with a daily backup in `~/Paper/.history`.
-
-Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in case you ever want to come back to past writing. In the Mac app it goes to `~/Paper/removed`. (To delete it for good, open that folder in Finder and move its files to the Trash.)
+In the Mac app, papers are saved as files in the `~/Paper` folder, with a daily backup in `~/Paper/.history`. Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in case you ever want to come back to past writing; it goes to `~/Paper/removed`.
 
 ## All Shortcuts
-
-### Writing
 
 | Keys | What it does |
 |---|---|
@@ -54,11 +50,6 @@ Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in 
 | Tab · ⇧Tab (in a list) | Indent · outdent the item |
 | ⌘Z · ⇧⌘Z | Undo · redo |
 | ⌘S | Save now (Paper also saves as you type) |
-
-### Side bar and windows
-
-| Keys | What it does |
-|---|---|
 | ⌘\\ | Open or close the side bar |
 | Esc | Close the side bar |
 | ⌘N | New paper in a new window (Mac app) |

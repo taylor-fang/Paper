@@ -1,55 +1,73 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-font="inter">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Paper for Mac</title>
+<title>Download Paper for Mac</title>
 <meta name="theme-color" content="#f3efe6">
+<link rel="icon" type="image/png" href="assets/app-icon-180.png">
 <link rel="apple-touch-icon" href="assets/app-icon-180.png">
+<link rel="preload" href="assets/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/PaperHand.css">
+<script>
+  // set like the writing page you came from: its font, size and spacing (Inter 15 at 1.5 until you change them)
+  try {
+    const s = JSON.parse(localStorage.getItem('paper.settings') || '{}');
+    const font = ['times', 'inter', 'helvetica', 'palatino'].includes(s.font) ? s.font : 'inter';
+    const size = (s.sizes && s.sizes.full) || 15, spacing = +s.spacing || 1.5;
+    const px = size * 4 / 3 - (matchMedia('(hover: none) and (pointer: coarse)').matches ? 2 : 0);
+    document.documentElement.dataset.font = font;
+    document.documentElement.style.setProperty('--size', px + 'px');
+    document.documentElement.style.setProperty('--lh', Math.round(px * spacing) + 'px');
+  } catch {}
+</script>
 <style>
-  /* the website's download page: the same paper, ink and type as Paper itself */
+  /* the website's download page: the same paper, ink, type and column as the writing page */
   @font-face { font-family: InterVariable; font-style: normal; font-weight: 100 900; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
-  :root { --paper: #f3efe6; --ink: #000; --faint: #cbc5b9; --accent: #8c6640; }
+  :root { --paper: #f3efe6; --ink: #000; --faint: #cbc5b9; --accent: #8c6640; --size: 20px; --lh: 30px; --font: InterVariable, system-ui, sans-serif; }
+  [data-font="times"] { --font: "Times New Roman", Times, serif; }
+  [data-font="helvetica"] { --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  [data-font="palatino"] { --font: Palatino, "Palatino Linotype", "Book Antiqua", serif; }
   html, body { margin: 0; background: var(--paper); color: var(--ink); }
-  body { font: 15px/1.5 InterVariable, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-  main { max-width: 34em; margin: 0 auto; padding: 14vh max(8vw, 24px) 18vh; }
-  h1 { margin: 0 0 1.6em; font: 600 15px/1.5 InterVariable, system-ui, sans-serif; }
-  p { margin: 0 0 1em; }
+  body { font: var(--size)/var(--lh) var(--font); -webkit-font-smoothing: antialiased; }
+  main { max-width: 44em; margin: 0 auto; padding: 14vh max(8vw, 80px) 18vh; }
+  @media (max-width: 700px) { main { padding: 56px 28px 18vh; } }
+  p { margin: 0 0 var(--lh); }
   /* labels in the handwriting, as in Paper's side bar */
-  .hand { font: 400 18px/1 "Paper Hand", serif; text-transform: uppercase; letter-spacing: .03em; }
-  .get { margin: 0 0 2.4em; }
-  .get a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--faint); padding-bottom: 3px; }
-  .get a:hover { border-color: var(--ink); }
-  .get p { margin: .9em 0 0; }
-  h2 { margin: 0 0 .8em; color: rgba(0, 0, 0, .9); }
-  ol { margin: 0 0 1em; padding-left: 1.4em; }
-  li { margin-bottom: .5em; padding-left: .2em; }
+  .hand { font: 400 24px/1.1 "Paper Hand", serif; text-transform: uppercase; letter-spacing: .03em; color: rgba(0, 0, 0, .9); }
+  h1.hand { margin: 0 0 var(--lh); font-size: 30px; }
+  h2.hand { margin: 0 0 calc(var(--lh) / 2); }
+  .get { margin: 0 0 calc(var(--lh) * 1.6); }
+  .get a { color: var(--accent); text-decoration: none; }
+  .get a:hover { color: var(--ink); }
+  .get p { margin: calc(var(--lh) / 3) 0 0; font-style: italic; }
+  ol { margin: 0 0 var(--lh); padding-left: 1.4em; }
+  li { margin-bottom: calc(var(--lh) / 4); padding-left: .2em; }
   li::marker { color: var(--accent); }
   a { color: inherit; text-decoration-color: var(--faint); text-underline-offset: 3px; }
   a:hover { text-decoration-color: var(--ink); }
-  .back { margin-top: 3em; }
+  .back { margin-top: calc(var(--lh) * 2); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Paper for Mac</h1>
+  <h1 class="hand">Download Paper for Mac</h1>
 
   <div class="get">
     <a class="hand" href="Paper.zip" download>Download</a>
-    <p>Paper.zip · about 1 MB · macOS 13 or later, Apple silicon and Intel</p>
+    <p>macOS 13 or later, Apple silicon and Intel · about 1 MB</p>
   </div>
 
   <h2 class="hand">How to install</h2>
   <ol>
     <li>Open <b>Paper.zip</b> from your Downloads.</li>
     <li>Drag <b>Paper.app</b> into your <b>Applications</b> folder.</li>
-    <li>Open Paper. The first time, macOS will say it can't check Paper, because it isn't available on the App Store yet. Click <b>Done</b>.</li>
+    <li><b>Open Paper.</b> The first time, macOS will say it can't check Paper, because it isn't available on the App Store yet. Click <b>Done</b>.</li>
     <li>Open <b>System Settings › Privacy &amp; Security</b>, scroll down to the message about Paper, and click <b>Open Anyway</b>.</li>
   </ol>
-  <p>You only need to do this once.</p>
+  <p>You only need to do this once. (Hopefully I can add an Apple developer membership in the future so the app will be automatically verified.)</p>
 
-  <p>Paper is open source, so you can modify anything from the <a href="https://github.com/taylor-fang/Paper">repo on GitHub</a>.</p>
+  <p>Paper is open source, so you can modify anything from the <a href="https://github.com/taylor-fang/Paper" target="_blank" rel="noopener">repo on GitHub</a>.</p>
 
   <p class="back"><a href="./">← Back to writing</a></p>
 </main>

@@ -7,7 +7,9 @@
 <meta name="theme-color" content="#f3efe6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Paper">
+<link rel="icon" type="image/png" href="assets/app-icon-180.png">
 <link rel="apple-touch-icon" href="assets/app-icon-180.png">
+<link rel="preload" href="assets/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/PaperHand.css">
 <style>
   :root {
@@ -297,6 +299,18 @@
   }
   #status.show { opacity: 1; transition: opacity .6s; }
 
+  /* a phone or tablet: tap the right edge (no asterisk), the system's own cursor, no hover colours, more room */
+  .touch #edge img, .touch #caret { display: none !important; }
+  .touch #editor, .touch #notes, .touch #todos .text { caret-color: var(--ink); }
+  .touch #papersBtn:hover, .touch #export .sym:hover, .touch #export .choice:hover { filter: none; }
+  .touch .ld .num u { display: none; } /* tap the number to change it */
+  .touch .ld .v { touch-action: manipulation; cursor: pointer; }
+  .touch .tools { margin-left: auto; }
+  .touch #edge { width: 28px; } /* only the margin: a tap on the words places the cursor */
+  @media (max-width: 700px) {
+    .touch[data-paper="full"] #page { padding: 56px 28px 50vh; }
+  }
+
   @media print {
     #bar, #edge, #status { display: none; }
     body { background: none !important; }
@@ -340,6 +354,9 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const root = document.documentElement;
+  // a phone or tablet: no mouse to hover with, so Paper is tapped instead
+  const touch = matchMedia('(hover: none) and (pointer: coarse)').matches || /[?&]touch\b/.test(location.search); // ?touch tries it on a computer
+  if (touch) root.classList.add('touch');
   const ed = $('editor'), notes = $('notes'), list = $('todos');
 
   /* ================= storage =================
@@ -481,6 +498,7 @@
     paper: [['full', 'Open'], ['sheet', 'Leaf']],
   };
   const RANGE = { size: [10, 30, 1], spacing: [1, 2, .1] }; // size in points, as in Pages and Word
+  if (touch) { RANGE.size = [9, 20, 1]; s.paper = 'full'; } // a phone: sizes for a small screen, and no leaf
   const SHOW = { size: (v) => String(v), spacing: (v) => v.toFixed(1) };
   const snap = (k, v) => { const [a, b, st] = RANGE[k]; return +Math.min(b, Math.max(a, Math.round(v / st) * st)).toFixed(2); };
   // settings saved before these choices existed land on the nearest one (System, briefly a choice, was Inter)
@@ -490,7 +508,7 @@
   for (const k of Object.keys(RANGE)) s[k] = snap(k, +s[k] || DEFAULTS[k]);
 
   const EXPORTS = [['md', 'md'], ['docx', 'word']];
-  const ROWS = [['font', 'Font'], ['size', 'Size'], ['spacing', 'Spacing'], ['paper', 'Paper']];
+  const ROWS = [['font', 'Font'], ['size', 'Size'], ['spacing', 'Spacing'], ['paper', 'Paper']].filter(([k]) => !(touch && k === 'paper')); // on a phone, always the open page
 
   // each setting: your handwritten label, a fine line, the value.
   // click a word to change it; numbers have ‹ › on hover, or drag them left and right
@@ -523,9 +541,13 @@
           u.onpointerup = u.onpointerleave = u.onpointercancel = stop;
           u.onclick = (e) => e.stopPropagation();
         });
+        if (touch) v.onclick = () => { // a phone: tap the number to go up a step, round to the smallest after the largest
+          const [lo, hi, st] = RANGE[key], next = +(s[key] + st).toFixed(2);
+          set(key, next > hi + 1e-9 ? lo : snap(key, next));
+        };
         const n = v.querySelector('.n');
         let x0, v0;
-        n.onpointerdown = (e) => { n.setPointerCapture(e.pointerId); x0 = e.clientX; v0 = s[key]; };
+        if (!touch) n.onpointerdown = (e) => { n.setPointerCapture(e.pointerId); x0 = e.clientX; v0 = s[key]; };
         n.onpointermove = (e) => { if (n.hasPointerCapture(e.pointerId)) set(key, snap(key, v0 + Math.round((e.clientX - x0) / 7) * RANGE[key][2])); };
       }
       row.append(v);
@@ -536,7 +558,7 @@
     tail.innerHTML = '<span id="count"></span><span class="tools"><span id="export"></span><img id="papersBtn" src="assets/icon-pages.png" alt="papers" title="papers"></span>';
     box.append(tail);
     showExport(false);
-    if (onWeb) $('papersBtn').insertAdjacentHTML('afterend', '<a id="dlBtn" href="download.html" title="download the Mac app"><img src="assets/icon-download.png" alt="download"></a>'); // the website: a down arrow for the Mac app
+    if (onWeb && !touch) $('papersBtn').insertAdjacentHTML('afterend', '<a id="dlBtn" href="download.html" title="download the Mac app"><img src="assets/icon-download.png" alt="download"></a>'); // the website: a down arrow for the Mac app
     $('papersBtn').onclick = (e) => { e.stopPropagation(); showPapers(!root.classList.contains('papers-view')); };
   }
 
@@ -695,9 +717,10 @@
 
   function applySettings() {
     for (const k of ['font', 'paper']) root.dataset[k] = s[k];
-    root.style.setProperty('--size', s.size * 4 / 3 + 'px'); // points to pixels
+    const px = s.size * 4 / 3 - (touch ? 2 : 0); // points to pixels, 2px smaller on a phone
+    root.style.setProperty('--size', px + 'px');
     // line height on whole pixels, so a big selection is one solid block with no hairline gaps between lines
-    root.style.setProperty('--lh', Math.round(s.size * 4 / 3 * s.spacing) + 'px');
+    root.style.setProperty('--lh', Math.round(px * s.spacing) + 'px');
     paintOptions();
     requestAnimationFrame(() => { fitBoxes(); alignArrows(); });
     document.fonts?.ready.then(() => drawSelection()); // the words move under a selection when the font or size changes
@@ -893,7 +916,7 @@
 
   function retitle() {
     const first = Array.from(wordsOf(ed.querySelector('p, li') || ed).trim()).slice(0, 48).join(''); // whole characters, never half an emoji
-    document.title = first || 'Paper';
+    document.title = onWeb ? 'Paper' : first || 'Paper'; // the website's tab always says Paper; the app's window shows the paper's first line
     if (native) ask({ op: 'title', text: document.title });
   }
 
@@ -1126,7 +1149,7 @@ A sidebar shows up at **hover on the right**. The sidebar includes sections for:
 - *File management.* Export into .md or .docx, and see all your writing on tiny papers.
 
 
-Click anywhere on the screen to start writing. Writing auto-saves, and you can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For the **open-source repo**, click [here](https://github.com/taylor-fang/Paper).
+Click anywhere on the screen to start writing. Writing auto-saves, and you can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For the **open-source repo**, see [here](https://github.com/taylor-fang/Paper).
 
 
 I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.`;
@@ -1169,16 +1192,38 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(STARTER) : '<p><br></p>');
+    const starter = touch ? STARTER.replace('at **hover on the right**', 'when you **tap on the right**') : STARTER;
+    ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
     if (firstVisit) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
     await loadSide(name);
-    if (firstVisit) { setNotes(onWeb ? 'Click around to explore!\n\nDownload the Mac desktop app below.' : 'Click around to explore!'); saveNotes(); saveNotes.flush(); }
+    if (firstVisit) { // a note to start, and on the website a to-do for the Mac app
+      setNotes('Click around to explore!'); saveNotes(); saveNotes.flush();
+      if (onWeb) { todos = [{ t: touch ? 'Open in desktop to download the Mac app' : 'Download the Mac desktop app below', d: false }]; renderTodos(); saveTodos(); saveTodos.flush(); }
+    }
     retitle();
     recount();
     paginate();
     caretToEnd();
+    centreOnOpen();
+  }
+
+  // a paper that fits on the screen opens with the same room above and below its words: the page scrolls down
+  // a little when its end sits closer to the bottom than its start does to the top. (A short paper stays where it
+  // starts, at the usual top margin; a long one opens at the top.)
+  function centreOnOpen() {
+    scrollTo(0, 0);
+    if (s.paper !== 'full' || !ed.firstElementChild) return;
+    const place = () => {
+      const top = ed.firstElementChild.getBoundingClientRect().top + scrollY, bottom = ed.lastElementChild.getBoundingClientRect().bottom + scrollY;
+      const h = bottom - top;
+      if (h >= innerHeight) return;
+      const by = top - (innerHeight - h) / 2;
+      if (by > 0) scrollTo(0, by);
+    };
+    place();
+    document.fonts?.ready.then(place); // once the font has loaded, the words take their real room
   }
 
   // spaces as plain spaces: the non-breaking ones a browser leaves behind become ordinary, and
@@ -2239,7 +2284,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
   }
   const saveTodos = saver(() => { if (docName) files.put('todo-' + docName, todoMd()); }, 300);
 
-  const CHECK = '<button class="check" type="button" tabindex="-1" aria-label="done"><img class="b0" src="assets/todo-box.png" alt=""></button>';
+  const CHECK = '<button class="check" type="button" tabindex="-1" aria-label="done"><img class="b0" src="assets/todo-box.png" alt="" decoding="sync"></button>';
 
   // the text node and offset that's a number of characters into a to-do
   function pointAt(el, n) {
@@ -2529,6 +2574,20 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     }
     if (t.startsWith('delete')) {
       const back = /Backward$/.test(t) || t === 'deleteByCut' || t === 'deleteByDrag' || t === 'deleteContent';
+      // the box is never deleted: when what the browser means to delete reaches outside the words (a word or a line
+      // back from the start, or a selection begun on the box), Paper deletes only the words in it
+      // and when it would take all of a to-do's words (WebKit then removes the emptied to-do, box and all)
+      const r = e.getTargetRanges?.()[0], text = list.children[a.i]?.querySelector('.text');
+      const p = r && todoPos(r.startContainer, r.startOffset), q = r && todoPos(r.endContainer, r.endOffset);
+      const outside = r && text && (!text.contains(r.startContainer) || !text.contains(r.endContainer));
+      const emptying = p && q && p.i === q.i && p.off === 0 && q.off >= todos[p.i].t.length && q.off > 0;
+      if (outside || emptying) {
+        e.preventDefault();
+        if (!p || !q || (p.i === q.i && p.off === q.off)) return;
+        remember();
+        cutSpan(p, q);
+        return redraw(p);
+      }
       if (!sel.collapsed) {
         if (!across) { remember(true); return; } // inside one to-do, the browser does it
         e.preventDefault(); remember();
@@ -2562,6 +2621,9 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     }
     remember(true);
   });
+
+  // there's always at least one to-do, with its box: if an edit ever leaves the list empty, it comes straight back
+  new MutationObserver(() => { if (!list.children.length) { renderTodos(); setTodoSel({ i: 0, off: 0 }); } }).observe(list, { childList: true });
 
   // after the browser's own small edits (typing, deleting inside a to-do), read the words back
   list.addEventListener('input', () => {
