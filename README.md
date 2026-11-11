@@ -13,7 +13,7 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 
 Paper is open-source under the [MIT license](LICENSE) so you can customize it the way you like (including using your own handwriting!)
 
-There are two pre-packaged ways to use Paper:
+There are two ready-made ways to use Paper:
 
 - **Mac app** (recommended): download \[here\]
 - **Browser version**: \[insert link\]

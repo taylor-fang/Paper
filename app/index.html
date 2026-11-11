@@ -188,7 +188,7 @@
   }
   #bar h2 { margin-bottom: 12px; }
   #bar section { display: flex; flex-direction: column; min-height: 120px; }
-  #notesWrap { flex: 1 1 50%; }
+  #notesWrap { flex: 1 1 40%; } /* the notes and the to-dos take the same room */
   #todoWrap { flex: 1 1 40%; margin-top: 24px; }
   #notes {
     flex: 1; outline: none; overflow-y: auto; cursor: text; caret-color: transparent; white-space: pre-wrap;
@@ -245,6 +245,8 @@
   .papers-view #bar #papersWrap { display: flex; }
   .papers-view #notesWrap, .papers-view #todoWrap, .papers-view #options .ld { display: none; }
   .papers-view #count, .papers-view #export { visibility: hidden; }
+  .dlrow { display: flex; justify-content: flex-end; margin-top: 14px; }
+  .papers-view .dlrow { visibility: hidden; }
   .papers-view .tail { margin-top: 0; } /* the settings above it are hidden, so the arrow sits closer to the pages: about half the room */
   .pgrid { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
   .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
@@ -267,9 +269,9 @@
   .pg.new img { height: 14px; width: auto; }
   #export .sym { display: block; height: 14px; width: auto; cursor: pointer; }
   #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: var(--accent); cursor: pointer; white-space: nowrap; }
-  #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: var(--accent); text-decoration: none; }
+  .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: var(--accent); text-decoration: none; }
   /* the side bar's sepia controls turn black when pointed at, at once, with no fade */
-  #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { filter: brightness(0); }
+  #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, .dl:hover { filter: brightness(0); }
 
   /* a thin five-armed asterisk (Helvetica's, at half its stroke) in sepia (#8c6640, a little lighter than the side bar's)
      at the middle of the right edge, shown when you come near it, opens the side bar */
@@ -467,12 +469,12 @@
   }
 
   /* ================= settings ================= */
-  const DEFAULTS = { font: 'times', size: 15, spacing: 1.4, paper: 'full', unit: 'pt' };
+  const DEFAULTS = { font: 'inter', size: 15, spacing: 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 15, spacing 1.5
   const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
   // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
   // each paper keeps its own size
-  if (!s.sizes) s.sizes = { full: 16, sheet: 14 };
+  if (!s.sizes) s.sizes = { full: 15, sheet: 14 };
   s.size = s.sizes[s.paper] ?? DEFAULTS.size;
 
   const CHOICES = {
@@ -534,8 +536,13 @@
     tail.className = 'tail';
     tail.innerHTML = '<span id="count"></span><span class="tools"><span id="export"></span><img id="papersBtn" src="assets/icon-pages.png" alt="papers" title="papers"></span>';
     box.append(tail);
-    if (onWeb) $('export').innerHTML = '<a class="dl" href="Paper.zip" download>download</a>';
-    else showExport(false);
+    showExport(false);
+    if (onWeb) { // the website: one more row, for the Mac app, right-aligned under the others
+      const dl = document.createElement('div');
+      dl.className = 'dlrow';
+      dl.innerHTML = '<a class="dl" href="download.html">download</a>';
+      box.append(dl);
+    }
     $('papersBtn').onclick = (e) => { e.stopPropagation(); showPapers(!root.classList.contains('papers-view')); };
   }
 
@@ -867,8 +874,9 @@
     // in the app: a normal Save dialog, and the app makes the file
     if (native) return void ask({ op: 'export', kind, name, font: s.font, text: kind === 'md' ? toMarkdown(ed) : ed.innerHTML });
     if (kind === 'md') return download(new Blob([toMarkdown(ed)], { type: 'text/markdown;charset=utf-8' }), name + '.md');
-    // word: the server turns the page into a .docx with the Mac's own converter
-    if (!onServer) return;
+    // word: the server turns the page into a .docx with the Mac's own converter. The website has no server, so it
+    // saves the page as a .doc that Word opens with its formatting
+    if (!onServer) return download(new Blob(['<html><head><meta charset="utf-8"></head><body style="font-family: ' + getComputedStyle(ed).fontFamily.replace(/"/g, "'") + '">' + ed.innerHTML + '</body></html>'], { type: 'application/msword' }), name + '.doc');
     try {
       const r = await fetch('/api/export/docx?font=' + s.font, {
         method: 'POST',
@@ -1115,7 +1123,7 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 <u>How to use Paper</u>
 
 
-A sidebar shows up at hover on the right. The sidebar includes sections for:
+A sidebar shows up at **hover on the right**. The sidebar includes sections for:
 
 
 - *Scratchpad.* Jot down notes or questions that arise which don’t fit anywhere yet.
@@ -1125,6 +1133,9 @@ A sidebar shows up at hover on the right. The sidebar includes sections for:
 
 
 Click anywhere on the screen to start writing. Writing auto-saves, and you can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc.
+
+
+For the **open-source repo**, click [here](https://github.com/taylor-fang/Paper).
 
 
 I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.`;
@@ -1172,6 +1183,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     tidyBlocks();
     if (firstVisit) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
     await loadSide(name);
+    if (firstVisit) { setNotes(onWeb ? 'Click around to explore! Download the Mac desktop app below.' : 'Click around to explore!'); saveNotes(); saveNotes.flush(); }
     retitle();
     recount();
     paginate();

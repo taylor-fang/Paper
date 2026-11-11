@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper for Mac</title>
+<meta name="theme-color" content="#f3efe6">
+<link rel="apple-touch-icon" href="assets/app-icon-180.png">
+<link rel="stylesheet" href="assets/PaperHand.css">
+<style>
+  /* the website's download page: the same paper, ink and type as Paper itself */
+  @font-face { font-family: InterVariable; font-style: normal; font-weight: 100 900; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
+  :root { --paper: #f3efe6; --ink: #000; --accent: #8c6640; --soft: #8d877c; --faint: #cbc5b9; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body { font: 15px/1.5 InterVariable, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  main { max-width: 34em; margin: 0 auto; padding: 14vh max(8vw, 24px) 18vh; }
+  h1 { margin: 0 0 1.4em; font: 400 32px/1 "Paper Hand", serif; text-transform: uppercase; letter-spacing: .03em; color: rgba(0, 0, 0, .9); }
+  p { margin: 0 0 1em; }
+  .get { display: flex; align-items: baseline; gap: 18px; margin: 2em 0 2.4em; }
+  .get a { font: 400 22px/1 "Paper Hand", serif; text-transform: uppercase; letter-spacing: .03em; color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--faint); padding-bottom: 3px; }
+  .get a:hover { color: #000; border-color: #000; }
+  .get span { color: var(--soft); font-size: 13px; }
+  h2 { margin: 2.2em 0 .8em; font: 400 18px/1 "Paper Hand", serif; text-transform: uppercase; letter-spacing: .03em; color: rgba(0, 0, 0, .9); }
+  ol { margin: 0 0 1em; padding-left: 1.4em; }
+  li { margin-bottom: .5em; padding-left: .2em; }
+  li::marker { color: var(--accent); }
+  a { color: inherit; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--ink); }
+  .quiet { color: var(--soft); font-size: 13px; }
+  .back { margin-top: 3em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Paper for Mac</h1>
+
+  <p>The Mac app is a quiet window for writing. It saves each paper as a file in a <b>Paper</b> folder in your home folder, with a backup each day, and works without the internet.</p>
+
+  <div class="get"><a href="Paper.zip" download>Download</a><span>Paper.zip · about 1 MB · macOS 13 or later, Apple silicon and Intel</span></div>
+
+  <h2>How to install</h2>
+  <ol>
+    <li>Open <b>Paper.zip</b> from your Downloads. You'll get <b>Paper.app</b>.</li>
+    <li>Drag <b>Paper.app</b> into your <b>Applications</b> folder.</li>
+    <li>Open Paper. The first time, macOS says it can't check Paper, because it isn't from the App Store or notarized by Apple yet. Click <b>Done</b>.</li>
+    <li>Open <b>System Settings › Privacy &amp; Security</b>, scroll down to the message about Paper, and click <b>Open Anyway</b>. Enter your password, then click <b>Open</b>.</li>
+  </ol>
+  <p>You only do this once. After that, Paper opens like any other app. Apple explains the steps in <a href="https://support.apple.com/guide/mac-help/mh40616/mac">Open a Mac app from an unknown developer</a>.</p>
+
+  <p class="quiet">Paper is open source, so you can read every line of it, or build it yourself, from the <a href="https://github.com/taylor-fang/Paper">repo on GitHub</a>.</p>
+
+  <p class="back"><a href="./">← Back to writing</a></p>
+</main>
+</body>
+</html>
