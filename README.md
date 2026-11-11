@@ -1,100 +1,64 @@
 # Paper
 
-A quiet page for writing. It comes three ways, all saving to the same files in `~/Paper`:
+Paper is a surface for writers.
 
-- **The Mac app**: `~/Applications/Paper.app`, one window per paper.
-- **The browser version**: http://localhost:4610, running while the Mac app is open (or with `node ~/Paper/app/server.js`).
-- **The website**: `~/Paper/site`, which saves in the browser itself.
+I created Paper because I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease and focus in writing.
 
-Move the mouse to the right edge of the window and click the **asterisk** for the side bar: notes and to-dos for the paper you're on, the settings, the word count, export, and the tiny pages for all your papers.
+Paper is open-source under the [MIT license](LICENSE) so you can customize it the way you like (including using your own handwriting!)
 
-## Shortcuts
+There are two packaged ways to use Paper:
 
-⌘ is Command, ⌥ is Option, ⇧ is Shift, ⌃ is Control.
+- **Mac app** (recommended): download \[here\]
+- **Browser version**: \[insert link\]
+
+## How to Use Paper
+
+A sidebar shows up at hover on the right. The sidebar includes sections for:
+
+- **Scratchpad.** Jot down notes or questions that arise which don’t fit anywhere yet.
+- **To-do.** Outline and divide writing into chunks, with a satisfying check for each section completed.
+- **Visual assist.** Write with huge font size & spacing when you need to feel a sense of progress, or 10pt & single-space when you need to see the shape. Click the settings to cycle through a small palette of options.
+- **File management.** Export into **.md or .docx**, and see all your writing on tiny papers.
+
+Click anywhere on the screen to start writing. Writing **auto-saves**, and you can use all the regular **keyboard shortcuts** to italicize, bold, copy, link, undo, footnote, etc. See [All Shortcuts](#all-shortcuts) for a full list.
+
+## Saving Papers
+
+On the website, papers are saved in your browser’s own storage. Adding Paper to your [Dock on a Mac](https://support.apple.com/guide/safari/add-to-dock-ibrw9e991864/mac) or your [iPhone's Home Screen](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios) stops Safari from clearing it on its own.
+
+In the Mac app, papers are saved as files in the `~/Paper` folder, with a daily backup in `~/Paper/.history`.
+
+Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in case you ever want to come back to past writing. In the Mac app it goes to `~/Paper/removed`. (To delete it for good, open that folder in Finder and move its files to the Trash.)
+
+## All Shortcuts
 
 ### Writing
 
 | Keys | What it does |
 |---|---|
 | ⌘B · ⌘I · ⌘U | Bold, italic, underline |
-| ⌘K | Add or edit a link (empty the address and press Enter to remove it) |
-| ⌘⌥F | Add a footnote where the cursor is, and start writing it in the margin |
-| ⌘F | Find on the page (whole words, in their forms: "origin" also finds "origins") |
-| Enter · ⇧Enter (in find) | Next match · previous match |
-| ⌘G · ⇧⌘G | Next match · previous match, while find is open |
-| Esc (in find) | Close find, leaving the match selected |
-| `* ` or `- ` at the start of a line | Start a bulleted list |
-| `1. ` at the start of a line | Start a numbered list |
+| ⌘K | Add or edit a link |
+| ⌘⌥F | Add a footnote |
+| ⌘F | Find on the page |
+| `*` or `-` at the start of a line | Start a bulleted list |
+| `1.` at the start of a line | Start a numbered list |
 | Tab · ⇧Tab (in a list) | Indent · outdent the item |
-| Enter on an empty item, or Backspace at its start | Leave the list |
-| Backspace just after a footnote number | Delete the footnote (Delete just before it does the same) |
 | ⌘Z · ⇧⌘Z | Undo · redo |
 | ⌘S | Save now (Paper also saves as you type) |
-
-### Footnotes
-
-| Keys | What it does |
-|---|---|
-| Enter or Esc (in a note) | Back to the writing, just after the number |
-| ⌘B · ⌘I · ⌘U (in a note) | Bold, italic, underline in the note |
-| Click a footnote number | Go to its note |
-
-### To-dos (in the side bar)
-
-| Keys | What it does |
-|---|---|
-| Enter | New to-do, taking the rest of the line with it |
-| ⇧Enter | New line inside the same to-do |
-| Backspace at the start of a to-do | Join it to the one above |
-| ⌘Enter | Tick or untick the to-do (or every to-do selected) |
-| ⌘Z · ⇧⌘Z | Undo · redo in the to-dos |
 
 ### Side bar and windows
 
 | Keys | What it does |
 |---|---|
-| ⌘\ | Open or close the side bar |
+| ⌘\\ | Open or close the side bar |
 | Esc | Close the side bar |
 | ⌘N | New paper in a new window (Mac app) |
 | ⌘W | Close the window (Mac app) |
 | ⌃⌘F | Full screen (Mac app) |
 | ⌘M · ⌘H · ⌘Q | Minimise · hide · quit (Mac app) |
 
-### With the mouse
+## Feedback
 
-| Action | What it does |
-|---|---|
-| Click below the writing | Adds empty lines down to where you clicked, so you can start there |
-| Triple-click | Select the whole paragraph |
-| Click into a link | Shows its address: click the address to edit it, ↗ to open it |
-| ⌘-click a link | Open it |
-| Click a to-do's box | Tick it; with several to-dos selected, ticks them all |
-| Drag across to-dos | Select several, to delete, cut, copy or retype them together |
-| Hover a number in the settings, then click or hold its arrows | Change the size or spacing (drag the number left or right too) |
-| Click a setting's value | Cycle through the fonts or paper types |
-| The pages icon (bottom right of the side bar) | Show all your papers as tiny pages; the arrow goes back |
-| Click a tiny page · the + | Open that paper · start a new one |
-| Hover a tiny page, then click its X | Take the paper off the tiny pages. Nothing is deleted: it moves to `~/Paper/removed` (your first paper has no X) |
-| Right-click a tiny page | Duplicate, or Delete (to the Trash) |
-| Finder: right-click an `.html` or `.md` file › Open With › Paper | Edit it in Paper, saved back where it is (Mac app) |
+I’d love your feedback! Feel free to [open an issue](https://github.com/taylor-fang/paper/issues) with any problems you run into.
 
-## Copying and pasting
-
-- **Copying out** keeps bold, italic, underline, links, lists and empty lines in apps that take formatting. Plain-text apps get a line per paragraph, with the empty lines kept.
-- **Pasting in** keeps bold, italic, links and lists, but drops other fonts and colours so the page stays one voice. Markdown pasted as plain text is turned into formatting.
-- **Spacing** follows the page: paragraphs that were set apart where you copied them get an empty line between them, list items sit close together, stray spaces at the ends of lines go, and paragraphs pasted at the end of a line start on the next one. Word's bullets become a real list.
-- **Footnotes** copy with their notes and paste back as footnotes.
-
-## Where things are saved
-
-| What | Where |
-|---|---|
-| Your first paper | `~/Paper/page.html` (and `page.md`) |
-| Other papers | `~/Paper/papers/<paper>.html` (and `.md`) |
-| Each paper's notes and to-dos | `~/Paper/notes/<paper>.txt`, `~/Paper/todos/<paper>.md` |
-| Settings | `~/Paper/.settings.json` |
-| Daily backups | `~/Paper/.history/<date>/`, each file as it was before that day's first change |
-| Deleted papers (browser version) | `~/Paper/.trash/` (the Mac app uses the Trash) |
-| Papers taken off with the X | `~/Paper/removed/`, laid out like `~/Paper` (`papers/`, `notes/`, `todos/`) |
-
-To delete a removed paper for good, open `~/Paper/removed` in Finder and move its files to the Trash yourself. To bring one back, move its files back into the same folders in `~/Paper`.
+I hope Paper can help you clear mental clutter and find a writing practice which feels a bit more natural.

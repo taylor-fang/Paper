@@ -18,7 +18,7 @@
     --ink: #000;
     --soft: #8d877c;
     --faint: #cbc5b9;
-    --accent: #704214; /* sepia ink: the side bar's icons, word count and export */
+    --accent: #8c6640; /* sepia, as the asterisk: the side bar's icons, word count and export */
     --size: 20px;
     --lh: 1.4;
     --font: "Times New Roman", Times, serif;
@@ -245,9 +245,9 @@
   .papers-view #count, .papers-view #export { visibility: hidden; }
   .papers-view .tail { margin-top: 0; } /* the settings above it are hidden, so the arrow sits closer to the pages: about half the room */
   .pgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
-  .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
-  .pg:hover { border-color: var(--soft); }
-  .pg.on { border-color: rgba(0, 0, 0, .8); }
+  .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #cdb79c; /* light brown */ background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
+  .pg:hover { border-color: #a98762; }
+  .pg.on { border-color: #704214; } /* the paper you're on, in deep sepia */
   /* hovering a tiny page shows a light X in its top corner: click it to take the paper off the tiny pages (kept in ~/Paper/removed) */
   .pg { position: relative; }
   .pg .del { position: absolute; right: 3px; top: 3px; padding: 4px; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
@@ -264,9 +264,8 @@
   #export .sym { display: block; height: 14px; width: auto; cursor: pointer; }
   #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: var(--accent); cursor: pointer; white-space: nowrap; }
   #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: var(--accent); text-decoration: none; }
-  /* the side bar's sepia controls rest a little light, and turn a deep, rich brown when pointed at */
-  #count, #papersBtn, #export .sym, #export .choice, #export .dl { opacity: .72; } /* the change is instant: no fade */
-  #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: 1; filter: saturate(1.5) brightness(.6); }
+  /* the side bar's sepia controls turn black when pointed at, at once, with no fade */
+  #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { filter: brightness(0); }
 
   /* a thin five-armed asterisk (Helvetica's, at half its stroke) in sepia (#8c6640, a little lighter than the side bar's)
      at the middle of the right edge, shown when you come near it, opens the side bar */
