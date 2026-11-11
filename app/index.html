@@ -32,7 +32,9 @@
      Cut down to load quickly: weights 400 to 700, its text optical size, and Latin, Greek and Cyrillic with their symbols */
   @font-face { font-family: InterVariable; font-style: normal; font-weight: 400 700; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
   @font-face { font-family: InterVariable; font-style: italic; font-weight: 400 700; font-display: swap; src: url("assets/InterVariable-Italic.woff2") format("woff2"); }
-  [data-font="inter"] { --font: InterVariable, system-ui, sans-serif; }
+  /* until Inter arrives, Arial sized to take exactly Inter's room (its width, ascent and descent), so nothing moves when it swaps in */
+  @font-face { font-family: InterFallback; src: local("Arial"), local("ArialMT"), local("Liberation Sans"); size-adjust: 107.19%; ascent-override: 90.38%; descent-override: 22.5%; line-gap-override: 0%; }
+  [data-font="inter"] { --font: InterVariable, InterFallback, system-ui, sans-serif; }
   [data-font="helvetica"] { --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
   [data-font="palatino"] { --font: Palatino, "Palatino Linotype", "Book Antiqua", serif; }
 
@@ -54,6 +56,10 @@
   /* ---------- paper: the whole screen ---------- */
   /* the writing takes the middle half of the window at any size, a quarter of it free either side (never less than
      the side bar's hover strip on the right, 72.8px, and so on the left too, so the writing stays centred) */
+  /* the writing stays out of sight for the moment before the settings are applied, so it never shifts into place
+     (and shows anyway after 3s, should the script ever fail) */
+  html:not(.ready) #page, html:not(.ready) #bar { visibility: hidden; animation: reveal 0s 3s forwards; }
+  @keyframes reveal { to { visibility: visible; } }
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh max(25vw, 80px) 50vh; }
 
   /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
@@ -750,6 +756,7 @@
 
   buildOptions();
   applySettings();
+  root.classList.add('ready'); // the page shows only now, already in its own font, size and spacing
   $('bar').addEventListener('transitionend', alignArrows);
 
   /* ================= the page ================= */
