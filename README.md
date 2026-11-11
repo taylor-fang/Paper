@@ -68,7 +68,7 @@ Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in 
 
 ## Feedback
 
-I’d love your feedback! Feel free to [open an issue](https://github.com/taylor-fang/paper/issues) with any problems you run into.
+I’d love your feedback! Feel free to [open an issue](https://github.com/taylor-fang/Paper/issues) with any problems you run into.
 
 I hope Paper can help you clear mental clutter and find a writing practice which feels a bit more natural.
 
