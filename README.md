@@ -1,11 +1,11 @@
-<h1 align="center">
+<h1>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="media/title-dark.png">
-    <img src="media/title-light.png" alt="Paper" height="32">
+    <img src="media/title-light.png" alt="Paper" height="29">
   </picture>
 </h1>
 
-<p align="center"><img src="media/screenshot.png" alt="Paper open on its About page: a calm, warm page of writing with nothing else on screen" width="860"></p>
+<p align="center"><img src="media/screenshot.jpg" alt="Paper in a window on a Mac desktop: a calm, warm page of writing, with nothing else on it" width="860"></p>
 
 Paper is a surface for writers.
 
