@@ -35,7 +35,7 @@ Writing auto-saves and you can use the regular keyboard shortcuts (see [All Shor
 
 On the website, papers are saved in your browser’s own storage. Adding Paper to your [Dock](https://support.apple.com/guide/safari/add-to-dock-ibrw9e991864/mac) (on Mac) or [Home Screen](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios) (on iPhone) stops Safari from clearing it on its own.
 
-In the Mac app, papers are saved as files in the `~/Paper` folder, with a daily backup in `~/Paper/.history`. Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in case you ever want to come back to past writing; it goes to `~/Paper/removed`.
+In the Mac app, papers are saved as files in the `~/Paper` folder, with a daily backup in `~/Paper/.history`. Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in case you ever want to come back to past writing; it goes to `~/Paper/removed`. Right-click Paper in the Dock to see the papers you have open.
 
 ## All Shortcuts
 

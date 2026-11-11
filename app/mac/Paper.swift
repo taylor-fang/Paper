@@ -10,7 +10,8 @@
 //   ~/Paper/.history/<date>/   each file as it was before that day's first change
 //
 // File › New Paper (⌘N) opens a new window with a new paper; File › Show in Finder
-// reveals the paper in the front window. The side bar's pages icon lists them all.
+// reveals the paper in the front window. The side bar's pages icon lists them all; a right-click on the
+// Dock icon lists the open ones.
 //
 // Any .html or .md file can be opened from Finder (Open With › Paper) and is edited where it
 // is: a markdown file is saved back as markdown; an HTML file keeps its <head> and styles and
@@ -394,6 +395,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     @objc func showInFinder(_ sender: Any?) {
         guard let pw = windows.first(where: { $0.window == NSApp.keyWindow }) ?? windows.last, let u = Store.url(pw.paper) else { return }
         NSWorkspace.shared.activateFileViewerSelecting([u])
+    }
+
+    // right-click the Dock icon: macOS lists the open papers' windows by their titles (each window's title is its
+    // paper's first line); below them, New Paper
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let new = NSMenuItem(title: "New Paper", action: #selector(newPaper(_:)), keyEquivalent: "")
+        new.target = self
+        menu.addItem(new)
+        return menu
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
