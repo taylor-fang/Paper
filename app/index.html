@@ -10,7 +10,9 @@
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/touch-icon.png">
 <link rel="preload" href="assets/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/PaperHand.css">
+<!-- your handwriting, for the side bar's labels: it loads beside the page rather than holding it up -->
+<link rel="preload" href="assets/PaperHand.css" as="style" onload="this.onload = null; this.rel = 'stylesheet'">
+<noscript><link rel="stylesheet" href="assets/PaperHand.css"></noscript>
 <style>
   :root {
     /* a warm, slightly dimmed paper: less glare than white, and ink that isn't pure black */
@@ -26,7 +28,8 @@
     --font: "Times New Roman", Times, serif;
     --ease: cubic-bezier(.2, .8, .2, 1);
   }
-  /* Inter is Rasmus Andersson's InterVariable 4.0 (rsms.me/inter), kept in assets so it works offline; licence in assets/Inter-OFL.txt */
+  /* Inter is Rasmus Andersson's InterVariable 4.0 (rsms.me/inter), kept in assets so it works offline; licence in assets/Inter-OFL.txt.
+     Cut down to load quickly: weights 400 to 700, its text optical size, and Latin, Greek and Cyrillic with their symbols */
   @font-face { font-family: InterVariable; font-style: normal; font-weight: 400 700; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
   @font-face { font-family: InterVariable; font-style: italic; font-weight: 400 700; font-display: swap; src: url("assets/InterVariable-Italic.woff2") format("woff2"); }
   [data-font="inter"] { --font: InterVariable, system-ui, sans-serif; }
@@ -97,7 +100,7 @@
   #editor li { padding-left: .3em; }
   /* bullets: a short hand-drawn dash in sepia at 70%, centred where the usual bullet sits */
   #editor ul > li { list-style: none; position: relative; }
-  #editor ul > li::before { content: ''; position: absolute; left: -1.065em; top: calc(var(--lh) / 2 - .03em); width: .49em; height: .16em; background: url(assets/bullet-dash.png) center / contain no-repeat; opacity: .7; pointer-events: none; } /* in the side bar's sepia */
+  #editor ul > li::before { content: ''; position: absolute; left: -1.065em; top: calc(var(--lh) / 2 - .03em); width: .49em; height: .16em; background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADEAAAAQCAYAAAC/bJePAAACCUlEQVR42tWWv04bQRDGf3c+n4mDCAqIAhEiXFAgOqBMESoi8Q6IB0DiPfIIvALpqJCQ0kRUlDRU/BeWDI754xh8+Gi+k4aTfb7DNlJGWuluZ2f2252Zb9bZXB7nfxcvQeck6MI32PRDwiyHcBKAdgIcprDpVdri8hJOPAR8NGAbGpH+OWbjyt8HwAc+Gx+TQEsjBzSBG+DOgPOkR76bBvRfoAY8pI1EHlgAVoFZgWoAFeBS/w/AGXAvHz4wARSAKY0RYFT6aeDJ7FEB/gGPQCC7MQHPA3WgLNsicAycA3vA7/hh4ofIAd+BDWCljT4wN1U30chpM0/f3SQNm8yb7yVF5BvwE/hlM8GL5doMsK4oxAvJMes93V6Wou+HLAJrwB/gIsIdv+kSMGeK1M0I0BkgQ0X18kX1dtEpnRylBX2g0DBhfdgDO12pFl8xipUj4FCLXRORrMOmaCdd1uGKEHZsFGwkIuenwJaYZqlLM0wSW/DtJDDk4Ot2I1q/Fp2OiL3qyo6qDrBtmC5sl07PwK54+YcK3dcoiCrHTATL5gLugBP9n2qjkm4x0Hyg+aqAXqpfVDQf9YpH49cV7d6K1p/S9Immqv8AGFazKgrMJ+BrrPndCFxNhw/F4y3Z+bEaiOxaplh76tpJz46GaXJW9jNsWMv4dElDFpmeHe/xmAsH/Yod9GOub/ICoQyh1exNn6IAAAAASUVORK5CYII=) center / contain no-repeat; opacity: .7; pointer-events: none; } /* in the side bar's sepia */
   #editor li::marker { line-height: 0; } /* Safari makes a bullet's line a pixel taller than the others; this keeps a list on the page's spacing */
   #editor ul ul, #editor ol ol, #editor ul ol, #editor ol ul { margin: 0; }
   #editor strike, #editor s { text-decoration-thickness: .07em; }
@@ -499,9 +502,7 @@
   // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
   // each paper keeps its own size
-  if (!s.sizes) s.sizes = { full: 12, sheet: 12 };
-  // the first size used to be 15 (14 on a leaf); anyone still there moves to the new 12, once
-  if (!s.size12) { if (s.sizes.full === 15) s.sizes.full = 12; if (s.sizes.sheet === 14) s.sizes.sheet = 12; s.size12 = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
+  if (!s.sizes) s.sizes = { full: 12, sheet: 12 }; // the first visit's sizes; after that, always what you chose
   s.size = s.sizes[s.paper] ?? DEFAULTS.size;
 
   const CHOICES = {
@@ -728,7 +729,7 @@
 
   function applySettings() {
     for (const k of ['font', 'paper']) root.dataset[k] = s[k];
-    const px = s.size * 4 / 3 - (touch ? 2 : 0); // points to pixels, 2px smaller on a phone
+    const px = s.size * 4 / 3; // points to pixels
     root.style.setProperty('--size', px + 'px');
     // line height on whole pixels, so a big selection is one solid block with no hairline gaps between lines
     root.style.setProperty('--lh', Math.round(px * s.spacing) + 'px');
@@ -1218,7 +1219,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (firstVisit || untouchedOld) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
     await loadSide(name);
     if (firstVisit) { // a note to start, and on the website a to-do for the Mac app
-      setNotes('Click around to explore!'); saveNotes(); saveNotes.flush();
+      setNotes(touch ? 'Tap around to explore!' : 'Click around to explore!'); saveNotes(); saveNotes.flush();
       if (onWeb) { todos = [{ t: touch ? 'Open in desktop to download the Mac app' : 'Download the Mac desktop app below', d: false }]; renderTodos(); saveTodos(); saveTodos.flush(); }
     }
     retitle();
