@@ -62,3 +62,7 @@ Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in 
 I’d love your feedback! Feel free to [open an issue](https://github.com/taylor-fang/paper/issues) with any problems you run into.
 
 I hope Paper can help you clear mental clutter and find a writing practice which feels a bit more natural.
+
+---
+
+Paper is under the [MIT license](LICENSE). The Inter typeface it uses is by Rasmus Andersson, under the [SIL Open Font License](app/assets/Inter-OFL.txt).
