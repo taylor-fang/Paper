@@ -18,6 +18,7 @@
     --ink: #000;
     --soft: #8d877c;
     --faint: #cbc5b9;
+    --accent: #704214; /* sepia ink: the side bar's icons, word count and export */
     --size: 20px;
     --lh: 1.4;
     --font: "Times New Roman", Times, serif;
@@ -89,9 +90,9 @@
   #editor p, #editor li, #notes p, #todos .text, .pg .t { unicode-bidi: plaintext; text-align: start; }
   #editor ul, #editor ol { margin: 0; padding-left: 2.1em; }
   #editor li { padding-left: .3em; }
-  /* bullets: a short hand-drawn dash at 45% ink, centred where the usual bullet sits */
+  /* bullets: a short hand-drawn dash in sepia at 70%, centred where the usual bullet sits */
   #editor ul > li { list-style: none; position: relative; }
-  #editor ul > li::before { content: ''; position: absolute; left: -1.065em; top: calc(var(--lh) / 2 - .03em); width: .49em; height: .16em; background: url(assets/bullet-dash.png) center / contain no-repeat; opacity: .45; pointer-events: none; }
+  #editor ul > li::before { content: ''; position: absolute; left: -1.065em; top: calc(var(--lh) / 2 - .03em); width: .49em; height: .16em; background: url(assets/bullet-dash.png) center / contain no-repeat; opacity: .7; pointer-events: none; } /* in the side bar's sepia */
   #editor li::marker { line-height: 0; } /* Safari makes a bullet's line a pixel taller than the others; this keeps a list on the page's spacing */
   #editor ul ul, #editor ol ol, #editor ul ol, #editor ol ul { margin: 0; }
   #editor strike, #editor s { text-decoration-thickness: .07em; }
@@ -166,7 +167,7 @@
     width: 320px; max-width: 88vw;
     display: flex; flex-direction: column;
     padding: 39px 24px 20px;
-    overflow-y: auto;
+    overflow-y: auto; overscroll-behavior: contain; /* the tiny pages, notes and to-dos scroll on their own, never the page behind */
     background: var(--paper);
     border-left: 1px solid rgba(40, 30, 10, .07);
     transform: translateX(100%);
@@ -197,6 +198,7 @@
 
   /* to-dos: your hand-drawn box, and a quick tick when done */
   #todos { list-style: none; margin: 0; padding: 0; overflow-y: auto; outline: none; caret-color: transparent; }
+  #notes, #todos, .pgrid { overscroll-behavior: contain; } /* scrolling stops at their ends, never moving the page behind */
   #todos li { position: relative; display: flex; align-items: flex-start; gap: .55em; font-size: calc(18px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
   #todos .text { flex: 1; min-width: 0; outline: none; caret-color: transparent; font: inherit; color: rgba(0, 0, 0, .9); white-space: pre-wrap; overflow-wrap: anywhere; }
   /* done: a thin straight black line through the middle of the words (see strikeThrough) */
@@ -229,12 +231,11 @@
 
   /* the word count, and export (or, on the website, the app download) */
   .tail { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-top: 28px; }
-  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: rgba(0, 0, 0, .7); user-select: none; white-space: nowrap; }
+  #count { font: italic calc(16.6px + var(--adj))/1 var(--font); color: var(--accent); user-select: none; white-space: nowrap; }
   .tools { display: flex; align-items: center; gap: 16px; }
   #export { display: flex; align-items: center; gap: 12px; }
   #papersBtn { display: block; height: 16px; width: auto; cursor: pointer; }
   .papers-view #papersBtn { height: 10.75px; } /* the back arrow, drawn with a finer pen */
-  #papersBtn:hover, #papersBtn:active { opacity: .6; }
 
   /* papers: the side bar becomes a little desk of tiny pages; click one to open it */
   /* two side bars that never overlap: notes and to-dos, or papers; the corner icon switches */
@@ -261,17 +262,20 @@
   .pg.new { display: flex; align-items: center; justify-content: center; border-style: dashed; }
   .pg.new img { height: 14px; width: auto; }
   #export .sym { display: block; height: 14px; width: auto; cursor: pointer; }
-  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: #000; cursor: pointer; white-space: nowrap; }
-  #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: #000; text-decoration: none; }
-  #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: .6; }
+  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: var(--accent); cursor: pointer; white-space: nowrap; }
+  #export .dl { font: 400 18.6px/1 "Paper Hand", var(--font); text-transform: uppercase; letter-spacing: .03em; color: var(--accent); text-decoration: none; }
+  /* the side bar's sepia controls rest a little light, and turn a deep, rich brown when pointed at */
+  #count, #papersBtn, #export .sym, #export .choice, #export .dl { opacity: .72; } /* the change is instant: no fade */
+  #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, #export .dl:hover { opacity: 1; filter: saturate(1.5) brightness(.6); }
 
-  /* a small hand-drawn asterisk at the middle of the right edge, shown when you come near it, opens the side bar */
-  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 50.6px; cursor: pointer; z-index: 2; }
+  /* a thin five-armed asterisk (Helvetica's, at half its stroke) in sepia (#8c6640, a little lighter than the side bar's)
+     at the middle of the right edge, shown when you come near it, opens the side bar */
+  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 72.8px; cursor: pointer; z-index: 2; }
   #edge img {
     position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
-    height: 21.6px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
+    height: 16.9px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
   }
-  #edge:hover img { opacity: .54; }
+  #edge:hover img { opacity: 1; }
   .open #edge { display: none; }
 
   #caret {
@@ -406,7 +410,12 @@
       if (onServer) { try { await fetch('/api/files/' + name + '?trash=1', { method: 'DELETE', headers: { 'x-paper': '1' } }); } catch {} }
     },
     async list() {
-      if (native) return (await ask({ op: 'list' })) || [];
+      if (native) {
+        const list = (await ask({ op: 'list' })) || [];
+        // a markdown file opened from Finder: its words as the page shows them, without the marks or tags (<u>, *, [](), …)
+        for (const p of list) if (p.md != null) { p.first = previewOf(new DOMParser().parseFromString(fromMarkdown(p.md), 'text/html')); delete p.md; }
+        return list;
+      }
       if (onServer) {
         try { const r = await fetch('/api/papers'); if (r.ok) return await r.json(); } catch {}
       }
@@ -1022,8 +1031,33 @@
   document.addEventListener('mousedown', (e) => { if (!menu.contains(e.target)) closeMenu(); }, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); }, true);
 
-  // on the website, a first visit opens on a short note; it's ordinary text, delete it and it's gone
-  const STARTER = '<p>A paper for writing.</p><p>Mouse over the right of the screen for visuals.</p>';
+  // the first time Paper opens (the app, the browser version or the website), the first paper is About Paper;
+  // it's ordinary text, delete it and it's gone
+  const STARTER = `<u>*About Paper*</u>
+
+
+Paper is a surface for writers.
+
+
+I created Paper because I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease, focus, and flow in writing.
+
+
+<u>How to use Paper</u>
+
+
+A sidebar shows up at hover on the right. The sidebar includes sections for:
+
+
+- *Scratchpad.* Jot down notes or questions that arise which don’t fit anywhere yet.
+- *To-do*. Outline and divide writing into chunks, with a satisfying check for each section completed.
+- *Visual assist.* Write with huge fontsize & spacing when you need to feel a sense of progress, or 10pt & single-space when you need to see the shape.
+- *File management.* Export into .md or .docx, and see all your writing on tiny papers.
+
+
+Click anywhere on the screen to start writing. Writing auto-saves, and you can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc.
+
+
+I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.`;
 
   // nothing written: no words and no list items
   const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn') && !notesText().trim() && !todos.some((t) => t.t.trim());
@@ -1059,12 +1093,14 @@
     s.current = name;
     local.set('settings', JSON.stringify(s));
     if (native) ask({ op: 'open', name });
-    const firstVisit = onWeb && name === 'page' && local.get('file.' + name) == null;
     let body = await files.get(name);
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
-    ed.innerHTML = body.trim() || (firstVisit ? STARTER : '<p><br></p>');
+    const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
+    if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
+    ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(STARTER) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
+    if (firstVisit) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
     await loadSide(name);
     retitle();
     recount();
@@ -2084,6 +2120,18 @@
     if (!open) ed.focus({ preventScroll: true });
   }
   $('edge').onclick = () => toggleBar(true);
+  // scrolling over the side bar scrolls what's under the mouse there (the tiny pages, notes or to-dos) and stops at
+  // its ends; it never passes on to the writing behind, even where nothing in the side bar can scroll
+  $('bar').addEventListener('wheel', (e) => {
+    for (let el = e.target; el; el = el.parentElement) {
+      if (/(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1) {
+        const room = e.deltaY < 0 ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+        if (room) return; // it scrolls itself
+      }
+      if (el === $('bar')) break;
+    }
+    e.preventDefault();
+  }, { passive: false });
 
   const notesText = () => notes.children.length ? [...notes.children].map((p) => p.innerText.replace(/\n$/, '')).join('\n') : notes.innerText;
   function setNotes(text) {
@@ -2309,6 +2357,21 @@
   function focusTodo(i, off) {
     setTodoSel({ i, off: off == null ? todos[i].t.length : off });
   }
+  // the box's column is for ticking only: a click beside or below the box does nothing, and a cursor that lands
+  // outside a to-do's words (on the box, or between it and the words) moves into the words
+  list.addEventListener('mousedown', (e) => {
+    const li = e.target.closest?.('li');
+    if (!li || e.target.closest('.text, .check')) return;
+    if (e.clientX < li.querySelector('.text').getBoundingClientRect().left) e.preventDefault();
+  });
+  document.addEventListener('selectionchange', () => {
+    const sel = getSelection();
+    if (!sel.isCollapsed || !sel.rangeCount || !list.contains(sel.anchorNode)) return;
+    const el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+    if (el.closest('.text')) return;
+    const at = todoPos(sel.anchorNode, sel.anchorOffset);
+    if (at) setTodoSel(at);
+  });
 
   // undo and redo for the list, since Paper edits it itself
   const todoUndo = [], todoRedo = [];

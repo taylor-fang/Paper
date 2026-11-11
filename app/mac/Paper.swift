@@ -184,16 +184,11 @@ enum Store {
         return names.compactMap { name in
             guard let u = url(name), let text = try? String(contentsOf: u, encoding: .utf8) else { return nil }
             let modified = (try? FileManager.default.attributesOfItem(atPath: u.path)[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-            let first: String
             if isFileName(name) && isMarkdown(u) {
-                // markdown: its lines, without the marks
-                first = String(text.components(separatedBy: .newlines).map {
-                    $0.replacingOccurrences(of: "^\\s*(#{1,6}\\s+|>\\s?|[-*+]\\s+|\\d+[.)]\\s+)", with: "", options: .regularExpression)
-                      .replacingOccurrences(of: "[*_~`]", with: "", options: .regularExpression)
-                }.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines).prefix(600))
-            } else {
-                first = firstLine(read(name))
+                // markdown: the page reads it with its own markdown reader, so the tiny page shows the words, never the marks or tags
+                return ["name": name, "first": "", "md": String(text.prefix(4000)), "modified": modified * 1000]
             }
+            let first = firstLine(read(name))
             return ["name": name, "first": first, "modified": modified * 1000]
         }
     }
