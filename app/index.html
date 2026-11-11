@@ -246,10 +246,12 @@
   .papers-view #notesWrap, .papers-view #todoWrap, .papers-view #options .ld { display: none; }
   .papers-view #count, .papers-view #export { visibility: hidden; }
   .papers-view .tail { margin-top: 0; } /* the settings above it are hidden, so the arrow sits closer to the pages: about half the room */
-  .pgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
+  .pgrid { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
   .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
   .pg:hover { border-color: var(--soft); }
   .pg.on { border-color: rgba(0, 0, 0, .8); }
+  .pg { user-select: none; -webkit-user-select: none; }
+  .pg.lifted { position: relative; z-index: 3; cursor: grabbing; box-shadow: 0 6px 18px rgba(60, 45, 20, .14); } /* picked up: it rides above the others */
   /* hovering a tiny page shows a light X in its top corner: click it to take the paper off the tiny pages (kept in ~/Paper/removed) */
   .pg { position: relative; }
   .pg .del { position: absolute; right: 3px; top: 3px; padding: 4px; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
@@ -946,6 +948,11 @@
     for (const p of papers.filter((p) => p.name !== docName && p.name.startsWith('paper-') && !p.first.trim())) files.remove(p.name);
     papers.splice(0, papers.length, ...papers.filter((p) => p.name === docName || !p.name.startsWith('paper-') || p.first.trim()));
     papers.sort((a, b) => b.modified - a.modified);
+    // once you've dragged them into an order, they keep it; papers new since then come first, newest at the top
+    if (s.order) {
+      const at = (p) => s.order.indexOf(p.name);
+      papers.sort((a, b) => (at(a) < 0 || at(b) < 0) ? (at(a) < 0 ? 0 : 1) - (at(b) < 0 ? 0 : 1) : at(a) - at(b));
+    }
     grid.innerHTML = '';
     const plus = document.createElement('div');
     plus.className = 'pg new';
@@ -955,6 +962,7 @@
     for (const p of papers) {
       const el = document.createElement('div');
       el.className = 'pg' + (p.name === docName ? ' on' : '');
+      el.dataset.name = p.name;
       const t = document.createElement('span');
       const blank = !p.first.trim();
       t.className = 't' + (blank ? ' blank' : '');
@@ -968,12 +976,73 @@
         del.onclick = (e) => { e.stopPropagation(); deletePaper(p, true, el); };
         el.append(del);
       }
-      el.onclick = async () => { if (p.name !== docName) await openDoc(p.name); toggleBar(false); }; // straight to the paper, side bar closed
+      el.onclick = async () => {
+        if (el.dataset.dragged) return void delete el.dataset.dragged; // the end of a drag, not a click
+        if (p.name !== docName) await openDoc(p.name);
+        toggleBar(false); // straight to the paper, side bar closed
+      };
+      dragToReorder(el, grid);
       el.oncontextmenu = (e) => { e.preventDefault(); pageMenu(e, p, el); };
       grid.append(el);
     }
     grid.append(plus);
     grid.querySelectorAll('.pg:not(.new) .t:not(.blank)').forEach(fitPreview);
+  }
+
+  // hold a tiny page (or press and move it) to pick it up, then drag it to a new place; the others make room
+  function dragToReorder(el, grid) {
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || e.target.closest('.del')) return;
+      const x0 = e.clientX, y0 = e.clientY;
+      let lifted = false, start = null, base = null;
+      const slot = () => { const t = el.style.transform; el.style.transform = 'none'; const r = el.getBoundingClientRect(); el.style.transform = t; return r; };
+      const lift = () => {
+        lifted = true;
+        start = base = slot();
+        el.classList.add('lifted');
+      };
+      const hold = setTimeout(lift, 220);
+      const move = (ev) => {
+        if (!lifted) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6) { clearTimeout(hold); lift(); } else return; }
+        ev.preventDefault();
+        const pages = [...grid.querySelectorAll('.pg:not(.new)')];
+        // where each page sits in the grid, not where its slide happens to have it right now
+        const g = grid.getBoundingClientRect();
+        const over = pages.find((x) => {
+          if (x === el) return false;
+          const left = g.left + x.offsetLeft - grid.scrollLeft, top = g.top + x.offsetTop - grid.scrollTop;
+          return ev.clientX >= left && ev.clientX <= left + x.offsetWidth && ev.clientY >= top && ev.clientY <= top + x.offsetHeight;
+        });
+        if (over) {
+          const rest = pages.filter((x) => x !== el);
+          const was = new Map(rest.map((x) => [x, x.getBoundingClientRect()]));
+          if (pages.indexOf(el) > pages.indexOf(over)) over.before(el); else over.after(el);
+          base = slot();
+          for (const x of rest) { // the others slide into their new places
+            const a = was.get(x), b = x.getBoundingClientRect();
+            if (a.left !== b.left || a.top !== b.top) x.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.2, .7, .2, 1)' });
+          }
+        }
+        el.style.transform = `translate(${ev.clientX - x0 + start.left - base.left}px, ${ev.clientY - y0 + start.top - base.top}px)`;
+      };
+      const up = () => {
+        clearTimeout(hold);
+        removeEventListener('pointermove', move);
+        removeEventListener('pointerup', up);
+        removeEventListener('pointercancel', up);
+        if (!lifted) return;
+        el.dataset.dragged = '1';
+        setTimeout(() => delete el.dataset.dragged, 0);
+        el.classList.remove('lifted');
+        el.style.transform = '';
+        s.order = [...grid.querySelectorAll('.pg:not(.new)')].map((x) => x.dataset.name);
+        local.set('settings', JSON.stringify(s));
+        if (native) ask({ op: 'settings', text: JSON.stringify(s) });
+      };
+      addEventListener('pointermove', move);
+      addEventListener('pointerup', up);
+      addEventListener('pointercancel', up);
+    });
   }
 
   // right-click on a tiny page: Duplicate, or Delete (to the Trash, so it can be got back)

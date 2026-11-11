@@ -1,7 +1,7 @@
 <h1>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="media/title-dark.png">
-    <img src="media/title-light.png" alt="Paper" height="29">
+    <img src="media/title-light.png" alt="Paper" height="26">
   </picture>
 </h1>
 
