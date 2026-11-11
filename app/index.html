@@ -729,7 +729,7 @@
 
   function applySettings() {
     for (const k of ['font', 'paper']) root.dataset[k] = s[k];
-    const px = s.size * 4 / 3; // points to pixels
+    const px = s.size * 4 / 3 - (touch ? 2 : 0); // points to pixels, 2px smaller on a phone
     root.style.setProperty('--size', px + 'px');
     // line height on whole pixels, so a big selection is one solid block with no hairline gaps between lines
     root.style.setProperty('--lh', Math.round(px * s.spacing) + 'px');
