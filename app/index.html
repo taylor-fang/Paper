@@ -45,7 +45,9 @@
   ::selection { background: rgba(112, 160, 70, .46); } /* green, as mixed */
 
   /* ---------- paper: the whole screen ---------- */
-  [data-paper="full"] #page { min-height: 100vh; padding: 14vh 8vw 50vh; }
+  /* the same room either side, always: at least the width of the side bar's hover strip on the right (72.8px), and so
+     on the left too, so the writing stays centred and never sits under the strip */
+  [data-paper="full"] #page { min-height: 100vh; padding: 14vh max(8vw, 80px) 50vh; }
   [data-paper="full"] #lines { max-width: 44em; margin-left: auto; margin-right: auto; }
 
   /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
@@ -271,7 +273,7 @@
      at the middle of the right edge, shown when you come near it, opens the side bar */
   #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 72.8px; cursor: pointer; z-index: 2; }
   #edge img {
-    position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+    position: absolute; right: 19.8px; top: 50%; transform: translateY(-50%);
     height: 16.9px; width: auto; padding: 4px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
   }
   #edge:hover img { opacity: 1; }
