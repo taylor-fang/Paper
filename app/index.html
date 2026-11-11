@@ -245,9 +245,9 @@
   .papers-view #count, .papers-view #export { visibility: hidden; }
   .papers-view .tail { margin-top: 0; } /* the settings above it are hidden, so the arrow sits closer to the pages: about half the room */
   .pgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
-  .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #cdb79c; /* light brown */ background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
-  .pg:hover { border-color: #a98762; }
-  .pg.on { border-color: #704214; } /* the paper you're on, in deep sepia */
+  .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
+  .pg:hover { border-color: var(--soft); }
+  .pg.on { border-color: rgba(0, 0, 0, .8); }
   /* hovering a tiny page shows a light X in its top corner: click it to take the paper off the tiny pages (kept in ~/Paper/removed) */
   .pg { position: relative; }
   .pg .del { position: absolute; right: 3px; top: 3px; padding: 4px; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
