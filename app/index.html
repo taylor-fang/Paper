@@ -1140,6 +1140,9 @@
   // the first time Paper opens (the app, the browser version or the website), the first paper is About Paper;
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
+  // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp'];
+  const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
 
@@ -1208,8 +1211,11 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
+    // an earlier About Paper, never touched since: it becomes the current one
+    const untouchedOld = name === 'page' && OLD_STARTERS.includes(textHash(ed.textContent.replace(/\s+/g, ' ').trim()));
+    if (untouchedOld) { ed.innerHTML = fromMarkdown(starter); tidyBlocks(); }
     if (name === 'page') ed.querySelectorAll(`a[href="${REPO}"]`).forEach((a) => { a.contentEditable = 'false'; a.classList.add('out'); });
-    if (firstVisit) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
+    if (firstVisit || untouchedOld) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
     await loadSide(name);
     if (firstVisit) { // a note to start, and on the website a to-do for the Mac app
       setNotes('Click around to explore!'); saveNotes(); saveNotes.flush();
