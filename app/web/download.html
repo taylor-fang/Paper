@@ -23,8 +23,10 @@
 </script>
 <style>
   /* the website's download page: the same paper, ink, type and column as the writing page */
-  @font-face { font-family: InterVariable; font-style: normal; font-weight: 100 900; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
-  :root { --paper: #f3efe6; --ink: #000; --faint: #cbc5b9; --accent: #8c6640; --size: 20px; --lh: 30px; --font: InterVariable, system-ui, sans-serif; }
+  @font-face { font-family: InterVariable; font-style: normal; font-weight: 400 700; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
+  /* until Inter arrives, Arial sized to take exactly Inter's room, so nothing moves when it swaps in */
+  @font-face { font-family: InterFallback; src: local("Arial"), local("ArialMT"), local("Liberation Sans"); size-adjust: 107.19%; ascent-override: 90.38%; descent-override: 22.5%; line-gap-override: 0%; }
+  :root { --paper: #f3efe6; --ink: #000; --faint: #cbc5b9; --accent: #8c6640; --size: 20px; --lh: 30px; --font: InterVariable, InterFallback, system-ui, sans-serif; }
   [data-font="times"] { --font: "Times New Roman", Times, serif; }
   [data-font="helvetica"] { --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
   [data-font="palatino"] { --font: Palatino, "Palatino Linotype", "Book Antiqua", serif; }
