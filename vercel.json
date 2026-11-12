@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'nothing to install'",
+  "buildCommand": "rm -rf site && mkdir site && cp -R app/index.html app/assets site/ && cp app/web/download.html app/web/manifest.webmanifest app/web/sw.js site/",
+  "outputDirectory": "site",
+  "redirects": [
+    { "source": "/Paper.zip", "destination": "https://github.com/taylor-fang/Paper/releases/latest/download/Paper.zip", "permanent": false }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=604800" }]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}

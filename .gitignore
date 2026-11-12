@@ -7,4 +7,5 @@
 !/README.md
 !/LICENSE
 !/.gitignore
+!/vercel.json
 .DS_Store
