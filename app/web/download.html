@@ -10,6 +10,8 @@
 <link rel="preload" href="assets/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/PaperHand.css">
 <script>
+  // the Mac app's page is for computers: a phone or tablet goes back to writing
+  if (matchMedia('(hover: none) and (pointer: coarse)').matches) location.replace('./');
   // set like the writing page you came from: its font, size and spacing (Inter 15 at 1.5 until you change them)
   try {
     const s = JSON.parse(localStorage.getItem('paper.settings') || '{}');

@@ -527,12 +527,12 @@
   }
 
   /* ================= settings ================= */
-  const DEFAULTS = { font: 'inter', size: 12, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5 (1.3 on a phone, where lines are short)
+  const DEFAULTS = { font: 'inter', size: touch ? 14 : 12, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5 (on a phone Inter 14, near the phone's own text size, at 1.3, where lines are short)
   const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
   // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
   // each paper keeps its own size
-  if (!s.sizes) s.sizes = { full: 12, sheet: 12 }; // the first visit's sizes; after that, always what you chose
+  if (!s.sizes) s.sizes = { full: DEFAULTS.size, sheet: DEFAULTS.size }; // the first visit's sizes; after that, always what you chose
   s.size = s.sizes[s.paper] ?? DEFAULTS.size;
 
   const CHOICES = {
@@ -1173,7 +1173,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1193,7 +1193,7 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 - *Scratchpad.* Jot down notes or questions.
 - *Ta-da.* Outline and divide writing into chunks (and get a gold star!)
 - *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
-- *File management.* Export into .md or .docx, and see all your writing on tiny papers.
+- *Files.* Export into .md or .docx, and see all your writing on tiny papers.
 
 
 You can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
@@ -1239,8 +1239,8 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    // a phone: a line under How to use Paper saying a computer is better
-    const starter = touch ? STARTER.replace('<u>How to use Paper</u>\n', '<u>How to use Paper</u>\nDesktop is recommended.\n') : STARTER;
+    // a phone: a line under How to use Paper saying a computer is better, and no keyboard shortcuts (the repo link stays)
+    const starter = touch ? STARTER.replace('<u>How to use Paper</u>\n', '<u>How to use Paper</u>\nDesktop is recommended.\n').replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();

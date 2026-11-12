@@ -27,7 +27,7 @@ A sidebar shows up at hover on the right. The sidebar includes sections for:
 - **Scratchpad.** Jot down notes or questions that arise which don’t fit anywhere yet.
 - **To-do.** Outline and divide writing into chunks, with a satisfying check for each section completed.
 - **Visual assist.** Click the settings to cycle through a small palette of options.
-- **File management.** Export into **.md or .docx**, and see all your writing on tiny papers.
+- **Files.** Export into **.md or .docx**, and see all your writing on tiny papers.
 
 Writing auto-saves and you can use the regular keyboard shortcuts (see [All Shortcuts](#all-shortcuts)) to italicize, bold, copy, link, undo, footnote, etc.
 
