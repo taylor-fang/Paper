@@ -5,8 +5,6 @@
   </picture>
 </h1>
 
-<p align="center"><img src="media/paper.jpg" alt="Paper in a window on a Mac desktop: a calm, warm page of writing, with nothing else on it" width="860"></p>
-
 Paper is a surface for writers.
 
 I created Paper because I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease and focus in writing.
@@ -18,7 +16,7 @@ There are two ready-made ways to use Paper:
 - **Mac app** (recommended): download \[here\]
 - **Browser version**: \[insert link\]
 
-<p align="center"><img src="media/writing.jpg" alt="Writing in Paper: one line on an empty page" width="49%"> <img src="media/side-bar-open.jpg" alt="The same page with the side bar open: notes, to-dos, the settings, the word count and export" width="49%"></p>
+<p align="center"><img src="media/writing.jpg" alt="Writing in Paper: &quot;This is what writing in Paper is like.&quot; on an otherwise empty page" width="860"></p>
 
 ## How to Use Paper
 
