@@ -338,6 +338,8 @@
   .touch .ld .num u { display: none; } /* tap the number to change it */
   .touch .ld .v { touch-action: manipulation; cursor: pointer; }
   .touch .tools { margin-left: auto; }
+  .touch, .touch body { overflow-x: hidden; } /* a phone: the page only ever moves up and down */
+  .touch body { touch-action: pan-y pinch-zoom; }
   .touch #edge { width: 28px; } /* only the margin: a tap on the words places the cursor */
   @media (max-width: 700px) {
     .touch[data-paper="full"] #page { padding: 56px 28px 50vh; }
@@ -358,7 +360,7 @@
   </div>
 
   <div id="edge"><img src="assets/icon-asterisk.png" alt="" title="side bar"></div>
-  <aside id="bar">
+  <aside id="bar" inert>
     <section id="notesWrap">
       <h2>Notes</h2>
       <div id="notes" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div>
@@ -389,6 +391,11 @@
   // a phone or tablet: no mouse to hover with, so Paper is tapped instead
   const touch = matchMedia('(hover: none) and (pointer: coarse)').matches || /[?&]touch\b/.test(location.search); // ?touch tries it on a computer
   if (touch) root.classList.add('touch');
+  // an iPhone or iPad zooms in when you start typing in text under 16px, and the page then slides sideways; this
+  // stops that zoom (pinching to zoom still works there)
+  if (touch && (/iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1))) {
+    document.querySelector('meta[name="viewport"]').content = 'width=device-width, initial-scale=1, maximum-scale=1';
+  }
   const ed = $('editor'), notes = $('notes'), list = $('todos');
 
   /* ================= storage =================
@@ -517,7 +524,7 @@
   }
 
   /* ================= settings ================= */
-  const DEFAULTS = { font: 'inter', size: 12, spacing: 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5
+  const DEFAULTS = { font: 'inter', size: 12, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5 (1.3 on a phone, where lines are short)
   const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
   // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
@@ -1163,7 +1170,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1229,7 +1236,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    const starter = touch ? STARTER.replace('Click on the right', 'Tap on the right') : STARTER;
+    const starter = touch ? STARTER.replace('Click on the right', 'Tap on the right').replace(/For full details and the open-source repo, see \[here\]\([^)]*\)\./, 'Desktop recommended.') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
@@ -2305,6 +2312,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
 
   function toggleBar(force) {
     const open = root.classList.toggle('open', force);
+    $('bar').inert = !open;
     if (open && !toggleBar.starReady) { toggleBar.starReady = true; new Image().src = 'assets/star-stick.webp'; } // ready before the last tick
     if (!open) setPapersView(false); // it always reopens on notes and to-dos
     if (!open) ed.focus({ preventScroll: true });
