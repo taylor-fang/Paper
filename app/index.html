@@ -4,6 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Paper</title>
+<!-- the link preview in Messages, Slack and the like: a sheet on the desk, "Paper for writing" in the handwriting -->
+<meta name="description" content="A surface for writers.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Paper">
+<meta property="og:title" content="Paper">
+<meta property="og:description" content="A surface for writers.">
+<meta property="og:url" content="https://paperwrite.space/">
+<meta property="og:image" content="https://paperwrite.space/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A sheet of paper on a desk with &quot;Paper for writing&quot; handwritten at the top">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f3efe6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Paper">
@@ -1173,7 +1185,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1239,10 +1251,10 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    // a phone: "(Desktop recommended)" beside How to use Paper, "A place for ease..." a paragraph of its own,
+    // a phone: "(desktop recommended)", in italics, beside How to use Paper, "A place for ease..." a paragraph of its own,
     // no keyboard shortcuts, and the repo called the GitHub repo
     const starter = touch ? STARTER
-      .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> (Desktop recommended)')
+      .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> *(desktop recommended)*')
       .replace(' A place for ease,', '\n\n\nA place for ease,')
       .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
       .replace('the open-source repo', 'the open-source GitHub repo') : STARTER;
