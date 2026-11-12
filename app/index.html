@@ -206,14 +206,14 @@
   #bar section { display: flex; flex-direction: column; min-height: 120px; }
   #notesWrap { flex: 1 1 40%; } /* the notes and the to-dos take the same room */
   #todoWrap { flex: 1 1 40%; margin-top: 24px; }
-  /* every to-do ticked: a soft brass foil star is stuck on beside "To do". It sits over the heading and takes no
+  /* every to-do ticked: a brass foil star is stuck on beside "To do". It sits over the heading and takes no
      room, so nothing moves. assets/star-stick.webp is 30 frames (made once from a 3D model of a bending sticker:
      one corner touches, then a curl is smoothed flat), the last of them the star at rest */
   #allDone { position: relative; display: inline-block; width: 0; height: 0; vertical-align: top; }
-  #allDone i { position: absolute; left: 5.75px; top: -2.25px; width: 36.5px; height: 39px; pointer-events: none;
-    background: url(assets/star-stick.webp) -1058.5px 0 / 1095px 39px no-repeat; }
+  #allDone i { position: absolute; left: 5.78px; top: -3px; width: 38px; height: 41px; pointer-events: none;
+    background: url(assets/star-stick.webp) -1102px 0 / 1140px 41px no-repeat; }
   #allDone i.go { animation: stuckOn 1000ms steps(29) both; }
-  @keyframes stuckOn { from { background-position: 0 0; } to { background-position: -1058.5px 0; } }
+  @keyframes stuckOn { from { background-position: 0 0; } to { background-position: -1102px 0; } }
   @media (prefers-reduced-motion: reduce) { #allDone i.go { animation: none; } }
   #notes {
     flex: 1; outline: none; overflow-y: auto; cursor: text; caret-color: transparent; white-space: pre-wrap;
