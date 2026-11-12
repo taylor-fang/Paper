@@ -43,8 +43,11 @@
   * { scrollbar-width: none; }
   *::-webkit-scrollbar { display: none; width: 0; height: 0; }
   html, body { margin: 0; min-height: 100%; }
-  /* the typing cursor everywhere, the margins and side bar too; only things you click show the hand */
-  html { cursor: text; }
+  /* the cursor, said outright for every part rather than inherited (Safari doesn't always pass it on): the typing
+     cursor wherever you can write, the hand on everything you click, each with a rectangle of room around it */
+  html, body, #page, #lines, #editor, .sheet { cursor: text; }
+  #bar, #bar h2, #bar footer, #bar section, .ld, .ld .k, .ld .line, .tail, #count { cursor: default; }
+  #notes, #todos, #todos li, #todos .text, .fnote .body, #linkbox, #find input { cursor: text; }
   body {
     background: var(--paper);
     color: var(--ink);
@@ -182,7 +185,7 @@
     width: 320px; max-width: 88vw;
     display: flex; flex-direction: column;
     padding: 39px 24px 20px;
-    overflow-y: auto; overscroll-behavior: contain; /* the tiny pages, notes and to-dos scroll on their own, never the page behind */
+    overflow-y: hidden; overscroll-behavior: contain; /* the tiny pages, notes and to-dos scroll on their own, never the page behind */
     background: var(--paper);
     border-left: 1px solid rgba(40, 30, 10, .07);
     transform: translateX(100%);
@@ -221,8 +224,9 @@
   #notes p { margin: 0 0 .35em; }
 
   /* to-dos: your hand-drawn box, and a quick tick when done */
-  #todos { list-style: none; margin: -5px 0 0 -6px; padding: 5px 0 0 6px; overflow-y: auto; outline: none; caret-color: transparent; } /* room inside its scrolling edge for the boxes' wider click area */
-  #notes, #todos, .pgrid { overscroll-behavior: contain; } /* scrolling stops at their ends, never moving the page behind */
+  #todos { flex: 1 1 auto; min-height: 0; list-style: none; margin: -5px 0 0 -6px; padding: 5px 0 0 6px; overflow-y: auto; outline: none; caret-color: transparent; } /* room inside its scrolling edge for the boxes' wider click area */
+  #notes, #todos, .pgrid { overscroll-behavior: contain; overflow-y: hidden !important; }
+  #bar.scrolls, #notes.scrolls, #todos.scrolls, .pgrid.scrolls { overflow-y: auto !important; } /* scrolling stops at their ends, never moving the page behind */
   #todos li { position: relative; display: flex; align-items: flex-start; gap: .55em; font-size: calc(18px + var(--adj)); line-height: 1.26; margin-bottom: .35em; cursor: text; }
   #todos .text { flex: 1; min-width: 0; outline: none; caret-color: transparent; font: inherit; color: rgba(0, 0, 0, .9); white-space: pre-wrap; overflow-wrap: anywhere; }
   /* done: a thin straight black line through the middle of the words (see strikeThrough) */
@@ -246,12 +250,13 @@
   #bar footer { display: flex; flex-direction: column; margin-top: 24px; }
   .ld { display: flex; align-items: baseline; gap: 9px; padding: 3px 0; } /* room either side of the line, so the size arrows never touch it */
   .ld .line { flex: 1; height: 3px; transform: translateY(-4px); background: linear-gradient(#c4bdb0, #c4bdb0) left center / 100% 1px no-repeat; }
-  .ld .v { font: calc(18px + var(--adj))/1.4 var(--font); color: rgba(0, 0, 0, .9); text-align: right; cursor: pointer; user-select: none; -webkit-user-select: none; }
-  .ld .num { position: relative; display: inline-block; cursor: ew-resize; touch-action: none; }
+  .ld .v { display: inline-block; padding: 3px 8px; margin: -3px -8px; font: calc(18px + var(--adj))/1.4 var(--font); color: rgba(0, 0, 0, .9); text-align: right; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  .ld .num { position: relative; cursor: pointer; touch-action: none; }
+  .ld .num .n { cursor: pointer; }
   .ld .num u { position: absolute; top: 50%; margin-top: -10.8px; display: block; line-height: 0; text-decoration: none; color: transparent; transition: color .2s; cursor: pointer; padding: 7px 6px; } /* fading the colour, not the opacity, so hovering never nudges the arrows sideways */
   .ld .num u svg { display: block; width: 4.2px; height: 7.6px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
-  .ld .num u:first-child { right: 100%; margin-right: -1.2px; } /* the arrow's point just touches the line */
-  .ld .num u:last-child { left: 100%; margin-left: -1.2px; }
+  .ld .num u:first-child { right: 100%; margin-right: -9.2px; } /* the arrow's point just touches the line */
+  .ld .num u:last-child { left: 100%; margin-left: -9.2px; }
   .ld:hover .num u { color: var(--soft); }
 
   /* the word count, and export (or, on the website, the app download) */
@@ -279,7 +284,7 @@
   .pg.lifted { position: relative; z-index: 3; cursor: grabbing; box-shadow: 0 6px 18px rgba(60, 45, 20, .14); } /* picked up: it rides above the others */
   /* hovering a tiny page shows a light X in its top corner: click it to take the paper off the tiny pages (kept in ~/Paper/removed) */
   .pg { position: relative; }
-  .pg .del { position: absolute; right: 3px; top: 3px; padding: 4px; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
+  .pg .del { position: absolute; right: 1px; top: 1px; padding: 6px; background: var(--paper); opacity: 0; transition: opacity .2s; cursor: pointer; }
   .pg .del img { display: block; height: 8px; width: auto; opacity: .4; transition: opacity .15s; }
   .pg:hover .del { opacity: 1; } /* a grey X */
   .pg .del:hover img { opacity: .8; } /* only the X darkens, not the paper behind it */
@@ -296,14 +301,14 @@
   #papersBtn, #export .sym, #dlBtn img, .pg .del img, .pg.new img, #edge img { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
   #papersBtn, #export .sym, #dlBtn img { box-sizing: content-box; padding: 8px; margin: -8px; }
   #dlBtn { display: block; cursor: pointer; }
-  #edge img, .pg .del, .pg .del img, .pg.new img { cursor: pointer; }
-  #export .choice { font: calc(15px + var(--adj))/1 var(--font); color: var(--accent); cursor: pointer; white-space: nowrap; }
+  #edge img, .pg, .pg *, .check, .check *, #dlBtn *, #export .sym, #papersBtn { cursor: pointer; }
+  #export .choice { display: inline-block; padding: 8px 5px; margin: -8px -5px; font: calc(15px + var(--adj))/1 var(--font); color: var(--accent); cursor: pointer; white-space: nowrap; }
   /* the side bar's sepia controls turn black when pointed at, at once, with no fade */
   #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, #dlBtn:hover img { filter: brightness(0); }
 
   /* a thin five-armed asterisk (Helvetica's, at half its stroke) in sepia (#8c6640, a little lighter than the side bar's)
      at the middle of the right edge, shown when you come near it, opens the side bar */
-  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 72.8px; cursor: text; z-index: 2; }
+  #edge { position: fixed; top: 0; right: 0; bottom: 0; width: 72.8px; cursor: pointer; z-index: 2; }
   #edge img {
     position: absolute; right: 19.8px; top: 50%; transform: translateY(-50%);
     height: 16.9px; width: auto; padding: 12px; margin-right: -8px; box-sizing: content-box; opacity: 0; transition: opacity .3s;
@@ -1158,7 +1163,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1172,7 +1177,7 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 <u>How to use Paper</u>
 
 
-***Hover on the right to see the sidebar:***
+**Click on the right to see the sidebar.**
 
 
 - *Scratchpad.* Jot down notes or questions.
@@ -1224,7 +1229,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    const starter = touch ? STARTER.replace('Hover on the right', 'Tap on the right') : STARTER;
+    const starter = touch ? STARTER.replace('Click on the right', 'Tap on the right') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
@@ -1235,8 +1240,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (firstVisit || untouchedOld) { saveDoc(); saveDoc.flush(); } // saved straight away, so it's there next time even if nothing is typed
     await loadSide(name);
     if (firstVisit) { // a note to start, and on the website a to-do for the Mac app
-      setNotes(touch ? 'Tap around to explore!' : 'Click around to explore!'); saveNotes(); saveNotes.flush();
-      if (onWeb) { todos = [{ t: touch ? 'Open in desktop to download the Mac app' : 'Download the Mac desktop app below', d: false }]; renderTodos(); saveTodos(); saveTodos.flush(); }
+      setNotes('Tap around to explore.'); saveNotes(); saveNotes.flush();
     }
     retitle();
     recount();
@@ -2290,6 +2294,15 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
   }
 
   /* ================= side bar ================= */
+  // the side bar and its notes, to-dos and tiny pages only become scrolling boxes while they have more than fits:
+  // Safari can stop updating the cursor inside a scrolling box, so most of the time there isn't one
+  const scrollers = [$('bar'), notes, list, $('pgrid')];
+  let scrollCheck = 0;
+  const markScrolls = () => { cancelAnimationFrame(scrollCheck); scrollCheck = requestAnimationFrame(() => { for (const el of scrollers) el.classList.toggle('scrolls', el.scrollHeight > el.clientHeight + 1); }); };
+  const sizes = new ResizeObserver(markScrolls);
+  for (const el of scrollers) { sizes.observe(el); new MutationObserver(markScrolls).observe(el, { childList: true, subtree: true, characterData: true }); }
+  addEventListener('resize', markScrolls);
+
   function toggleBar(force) {
     const open = root.classList.toggle('open', force);
     if (open && !toggleBar.starReady) { toggleBar.starReady = true; new Image().src = 'assets/star-stick.webp'; } // ready before the last tick
