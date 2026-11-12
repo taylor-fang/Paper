@@ -1173,7 +1173,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1239,8 +1239,13 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    // a phone: a line under How to use Paper saying a computer is better, and no keyboard shortcuts (the repo link stays)
-    const starter = touch ? STARTER.replace('<u>How to use Paper</u>\n', '<u>How to use Paper</u>\nDesktop is recommended.\n').replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '') : STARTER;
+    // a phone: "(Desktop recommended)" beside How to use Paper, "A place for ease..." a paragraph of its own,
+    // no keyboard shortcuts, and the repo called the GitHub repo
+    const starter = touch ? STARTER
+      .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> (Desktop recommended)')
+      .replace(' A place for ease,', '\n\n\nA place for ease,')
+      .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
+      .replace('the open-source repo', 'the open-source GitHub repo') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
