@@ -1170,7 +1170,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', '1bgd35b'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1184,7 +1184,7 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 <u>How to use Paper</u>
 
 
-**Tap on the right to see the sidebar.**
+**Click on the right to see the sidebar.**
 
 
 - *Scratchpad.* Jot down notes or questions.
@@ -1236,7 +1236,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    const starter = touch ? STARTER.replace(/For full details and the open-source repo, see \[here\]\([^)]*\)\./, 'Desktop recommended.') : STARTER;
+    const starter = touch ? STARTER.replace('Click on the right', 'Tap on the right').replace(/For full details and the open-source repo, see \[here\]\([^)]*\)\./, 'Desktop recommended.') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
