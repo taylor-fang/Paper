@@ -8,4 +8,5 @@
 !/LICENSE
 !/.gitignore
 !/vercel.json
+!/.github/
 .DS_Store

@@ -35,10 +35,8 @@ echo "Built $APP"
 mkdir -p "$SITE"
 cp ../index.html "$SITE/index.html"
 rm -rf "$SITE/assets" && cp -R ../assets "$SITE/assets"
-# installable: a manifest, a service worker for offline, and the app's icon for the Home Screen and Dock
+# installable: a manifest, a service worker for offline, and opaque icons (in assets) for the Home Screen and Dock
 cp ../web/manifest.webmanifest ../web/sw.js ../web/download.html ../web/vercel.json "$SITE/"
-cp "$TMP/Paper.iconset/icon_256x256@2x.png" "$SITE/assets/app-icon-512.png"
-sips -z 180 180 "$TMP/Paper.iconset/icon_256x256@2x.png" --out "$SITE/assets/app-icon-180.png" >/dev/null
 rm -f "$SITE/Paper.zip"
 ditto -c -k --norsrc --noextattr --noacl --keepParent "$APP" "$SITE/Paper.zip"
 echo "Built $SITE"
