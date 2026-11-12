@@ -152,6 +152,9 @@
   /* the matches: soft marks laid over the words (multiplied, so the ink stays black), the current one stronger */
   /* the page's selection is drawn by Paper (drawSelection), so Safari's own is kept clear */
   #editor::selection, #editor ::selection { background: transparent; }
+  /* a phone: iPhones draw their own selection (with its handles) whatever the page says, so Paper's isn't drawn too */
+  .touch #selection { display: none; }
+  .touch #editor::selection, .touch #editor ::selection { background: rgba(112, 160, 70, .46); }
   #selection { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; } /* just behind the words */
   #selection i { position: absolute; background: rgba(112, 160, 70, .46); }
   #marks { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; mix-blend-mode: multiply; }
@@ -274,7 +277,7 @@
   .papers-view #notesWrap, .papers-view #todoWrap, .papers-view #options .ld { display: none; }
   .papers-view #count, .papers-view #export { visibility: hidden; }
   #dlBtn img { display: block; height: 15px; width: auto; } /* a hand-drawn down arrow, to the Mac app's download page */
-  .papers-view #dlBtn { visibility: hidden; }
+  .papers-view #dlBtn { display: none; } /* gone, not just hidden, so the back arrow lines up with the pages' right edge */
   .papers-view .tail { margin-top: 0; } /* the settings above it are hidden, so the arrow sits closer to the pages: about half the room */
   .pgrid { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
   .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
@@ -1170,7 +1173,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1184,11 +1187,11 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 <u>How to use Paper</u>
 
 
-**Click on the right to see the sidebar.**
+**Tap on the right to see the sidebar.**
 
 
 - *Scratchpad.* Jot down notes or questions.
-- *Ta-da.* Outline and divide writing into chunks (and get gold stars!)
+- *Ta-da.* Outline and divide writing into chunks (and get a gold star!)
 - *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
 - *File management.* Export into .md or .docx, and see all your writing on tiny papers.
 
@@ -1236,7 +1239,8 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    const starter = touch ? STARTER.replace('Click on the right', 'Tap on the right').replace(/For full details and the open-source repo, see \[here\]\([^)]*\)\./, 'Desktop recommended.') : STARTER;
+    // a phone: a line under How to use Paper saying a computer is better
+    const starter = touch ? STARTER.replace('<u>How to use Paper</u>\n', '<u>How to use Paper</u>\nDesktop is recommended.\n') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
