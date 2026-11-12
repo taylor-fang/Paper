@@ -1,0 +1,49 @@
+# Builds Paper.app on a Mac and publishes Paper.zip, the Mac app download.
+# The website's /Paper.zip (see vercel.json) points at the newest release's Paper.zip.
+#
+# - Every pull request that touches the app: built, to check it compiles. Nothing is published.
+# - Every merge to main that touches the app (or a run by hand from the Actions tab): built and published as a
+#   new release, which becomes the latest.
+name: Mac app
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/mac-app.yml']
+  pull_request:
+    paths: ['app/**', '.github/workflows/mac-app.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mac-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Paper.app and Paper.zip
+        run: sh app/mac/build.sh
+
+      - name: Keep Paper.zip with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paper.zip
+          path: ~/Paper/site/Paper.zip
+
+      - name: Publish Paper.zip as the latest release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="app-${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" "$HOME/Paper/site/Paper.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Paper for Mac ($(date -u +%Y-%m-%d))" \
+            --notes "Paper.app for macOS 13 or later, Apple silicon and Intel. Built from ${GITHUB_SHA::7}. Unzip, drag Paper.app to Applications, and the first time open it from System Settings > Privacy & Security > Open Anyway." \
+            --latest
