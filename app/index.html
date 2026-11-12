@@ -2227,18 +2227,40 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (root.classList.contains('open') && !$('bar').contains(e.target) && e.target !== linkBox) toggleBar(false);
   });
 
-  // clicking the margins still puts you on the page; clicking below the writing
-  // adds empty lines down to where you clicked, so you can start writing there
+  // clicking the margins still puts you on the page: in the margin beside a line, the cursor goes to that line's
+  // start (left) or end (right); above the writing, to its start; below it, empty lines are added down to where
+  // you clicked, so you can start writing there
+  const caretFromPoint = (x, y) => {
+    if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    const p = document.caretPositionFromPoint?.(x, y);
+    if (!p) return null;
+    const r = document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true); return r;
+  };
   document.addEventListener('mousedown', (e) => {
     const t = e.target;
     const onPage = t === document.body || t === root || t === ed || t.id === 'page' || t.id === 'lines' || t.id === 'sheets' || t.classList?.contains('shim') || t.classList?.contains('sheet');
     if (!onPage || e.button !== 0 || e.metaKey || e.shiftKey) return;
-    const last = ed.lastElementChild;
+    const first = ed.firstElementChild, last = ed.lastElementChild;
     const below = last && e.clientY > last.getBoundingClientRect().bottom;
-    if (!below && t === ed) return; // beside a line: let the browser put the cursor there
+    const col = ed.getBoundingClientRect();
+    const beside = e.clientX < col.left || e.clientX > col.right;
+    if (!below && t === ed && !beside) return; // on a line: let the browser put the cursor there
     e.preventDefault();
-    if (below) linesDownTo(e.clientY);
-    caretToEnd();
+    if (below) { linesDownTo(e.clientY); caretToEnd(); }
+    else if (first && e.clientY < first.getBoundingClientRect().top) { ed.focus({ preventScroll: true }); placeCaret((r) => { r.selectNodeContents(first); r.collapse(true); }); }
+    else {
+      // the same line, just inside the column: its first character on the left, its last on the right
+      const r = caretFromPoint(e.clientX < col.left ? col.left + 1 : col.right - 1, e.clientY);
+      ed.focus({ preventScroll: true });
+      if (r && ed.contains(r.startContainer)) {
+        let { startContainer: n, startOffset: o } = r;
+        // where a line wraps, the end of one line is the start of the next: on the right, stay before the space
+        // the line wrapped at, so the cursor shows at the end of the line you clicked beside
+        if (e.clientX > col.right && n.nodeType === 3 && o > 0 && o < n.length && /\s/.test(n.data[o - 1])) o--;
+        placeCaret((x) => { x.setStart(n, o); x.collapse(true); });
+      }
+      else caretToEnd();
+    }
     caretJumped = true;
     drawCaret();
   });
