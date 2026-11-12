@@ -11,7 +11,7 @@ Paper is a surface for writers.
 
 I created Paper because I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease and focus in writing.
 
-Paper is open-source under the [MIT license](LICENSE) so you can customize it the way you like (including using your own handwriting!)
+Paper is open-source under the [MIT license](LICENSE) so you can customize it the way you like (including using your own handwriting, with [Paper Hand](https://github.com/taylor-fang/handwriting)!)
 
 There are two ready-made ways to use Paper:
 

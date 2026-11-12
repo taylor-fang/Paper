@@ -32,7 +32,9 @@
      Cut down to load quickly: weights 400 to 700, its text optical size, and Latin, Greek and Cyrillic with their symbols */
   @font-face { font-family: InterVariable; font-style: normal; font-weight: 400 700; font-display: swap; src: url("assets/InterVariable.woff2") format("woff2"); }
   @font-face { font-family: InterVariable; font-style: italic; font-weight: 400 700; font-display: swap; src: url("assets/InterVariable-Italic.woff2") format("woff2"); }
-  [data-font="inter"] { --font: InterVariable, system-ui, sans-serif; }
+  /* until Inter arrives, Arial sized to take exactly Inter's room (its width, ascent and descent), so nothing moves when it swaps in */
+  @font-face { font-family: InterFallback; src: local("Arial"), local("ArialMT"), local("Liberation Sans"); size-adjust: 107.19%; ascent-override: 90.38%; descent-override: 22.5%; line-gap-override: 0%; }
+  [data-font="inter"] { --font: InterVariable, InterFallback, system-ui, sans-serif; }
   [data-font="helvetica"] { --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
   [data-font="palatino"] { --font: Palatino, "Palatino Linotype", "Book Antiqua", serif; }
 
@@ -54,6 +56,10 @@
   /* ---------- paper: the whole screen ---------- */
   /* the writing takes the middle half of the window at any size, a quarter of it free either side (never less than
      the side bar's hover strip on the right, 72.8px, and so on the left too, so the writing stays centred) */
+  /* the writing stays out of sight for the moment before the settings are applied, so it never shifts into place
+     (and shows anyway after 3s, should the script ever fail) */
+  html:not(.ready) #page, html:not(.ready) #bar { visibility: hidden; animation: reveal 0s 3s forwards; }
+  @keyframes reveal { to { visibility: visible; } }
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh max(25vw, 80px) 50vh; }
 
   /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
@@ -197,6 +203,15 @@
   #bar section { display: flex; flex-direction: column; min-height: 120px; }
   #notesWrap { flex: 1 1 40%; } /* the notes and the to-dos take the same room */
   #todoWrap { flex: 1 1 40%; margin-top: 24px; }
+  /* every to-do ticked: a soft brass foil star is stuck on beside "To do". It sits over the heading and takes no
+     room, so nothing moves. assets/star-stick.webp is 30 frames (made once from a 3D model of a bending sticker:
+     one corner touches, then a curl is smoothed flat), the last of them the star at rest */
+  #allDone { position: relative; display: inline-block; width: 0; height: 0; vertical-align: top; }
+  #allDone i { position: absolute; left: 5.75px; top: -2.25px; width: 36.5px; height: 39px; pointer-events: none;
+    background: url(assets/star-stick.webp) -1058.5px 0 / 1095px 39px no-repeat; }
+  #allDone i.go { animation: stuckOn 1000ms steps(29) both; }
+  @keyframes stuckOn { from { background-position: 0 0; } to { background-position: -1058.5px 0; } }
+  @media (prefers-reduced-motion: reduce) { #allDone i.go { animation: none; } }
   #notes {
     flex: 1; outline: none; overflow-y: auto; cursor: text; caret-color: transparent; white-space: pre-wrap;
     font: calc(18.5px + var(--adj))/1.35 var(--font);
@@ -344,7 +359,7 @@
       <div id="notes" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div>
     </section>
     <section id="todoWrap">
-      <h2>To do</h2>
+      <h2>To do<span id="allDone" aria-hidden="true"></span></h2>
       <ul id="todos"></ul>
     </section>
     <section id="papersWrap">
@@ -750,6 +765,7 @@
 
   buildOptions();
   applySettings();
+  root.classList.add('ready'); // the page shows only now, already in its own font, size and spacing
   $('bar').addEventListener('transitionend', alignArrows);
 
   /* ================= the page ================= */
@@ -2220,18 +2236,40 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (root.classList.contains('open') && !$('bar').contains(e.target) && e.target !== linkBox) toggleBar(false);
   });
 
-  // clicking the margins still puts you on the page; clicking below the writing
-  // adds empty lines down to where you clicked, so you can start writing there
+  // clicking the margins still puts you on the page: in the margin beside a line, the cursor goes to that line's
+  // start (left) or end (right); above the writing, to its start; below it, empty lines are added down to where
+  // you clicked, so you can start writing there
+  const caretFromPoint = (x, y) => {
+    if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    const p = document.caretPositionFromPoint?.(x, y);
+    if (!p) return null;
+    const r = document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true); return r;
+  };
   document.addEventListener('mousedown', (e) => {
     const t = e.target;
     const onPage = t === document.body || t === root || t === ed || t.id === 'page' || t.id === 'lines' || t.id === 'sheets' || t.classList?.contains('shim') || t.classList?.contains('sheet');
     if (!onPage || e.button !== 0 || e.metaKey || e.shiftKey) return;
-    const last = ed.lastElementChild;
+    const first = ed.firstElementChild, last = ed.lastElementChild;
     const below = last && e.clientY > last.getBoundingClientRect().bottom;
-    if (!below && t === ed) return; // beside a line: let the browser put the cursor there
+    const col = ed.getBoundingClientRect();
+    const beside = e.clientX < col.left || e.clientX > col.right;
+    if (!below && t === ed && !beside) return; // on a line: let the browser put the cursor there
     e.preventDefault();
-    if (below) linesDownTo(e.clientY);
-    caretToEnd();
+    if (below) { linesDownTo(e.clientY); caretToEnd(); }
+    else if (first && e.clientY < first.getBoundingClientRect().top) { ed.focus({ preventScroll: true }); placeCaret((r) => { r.selectNodeContents(first); r.collapse(true); }); }
+    else {
+      // the same line, just inside the column: its first character on the left, its last on the right
+      const r = caretFromPoint(e.clientX < col.left ? col.left + 1 : col.right - 1, e.clientY);
+      ed.focus({ preventScroll: true });
+      if (r && ed.contains(r.startContainer)) {
+        let { startContainer: n, startOffset: o } = r;
+        // where a line wraps, the end of one line is the start of the next: on the right, stay before the space
+        // the line wrapped at, so the cursor shows at the end of the line you clicked beside
+        if (e.clientX > col.right && n.nodeType === 3 && o > 0 && o < n.length && /\s/.test(n.data[o - 1])) o--;
+        placeCaret((x) => { x.setStart(n, o); x.collapse(true); });
+      }
+      else caretToEnd();
+    }
     caretJumped = true;
     drawCaret();
   });
@@ -2254,6 +2292,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
   /* ================= side bar ================= */
   function toggleBar(force) {
     const open = root.classList.toggle('open', force);
+    if (open && !toggleBar.starReady) { toggleBar.starReady = true; new Image().src = 'assets/star-stick.webp'; } // ready before the last tick
     if (!open) setPapersView(false); // it always reopens on notes and to-dos
     if (!open) ed.focus({ preventScroll: true });
   }
@@ -2302,7 +2341,22 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     }
     return out;
   }
-  const saveTodos = saver(() => { if (docName) files.put('todo-' + docName, todoMd()); }, 300);
+  const saveTodoFile = saver(() => { if (docName) files.put('todo-' + docName, todoMd()); }, 300);
+  // every change to the to-dos is saved, and the star follows: it's stuck on when the last one is ticked
+  const saveTodos = Object.assign(() => { saveTodoFile(); allDoneStar(true); }, { flush: saveTodoFile.flush });
+
+  // the gold star beside "To do": there when every to-do with words in it is ticked (an empty new line doesn't count)
+  function allDoneStar(animate) {
+    const real = todos.filter((t) => t.t.trim());
+    const done = real.length > 0 && real.every((t) => t.d);
+    const slot = $('allDone'), star = slot.firstElementChild;
+    if (!done) { clearTimeout(allDoneStar.soon); allDoneStar.soon = null; star?.remove(); return; }
+    if (star || allDoneStar.soon) return;
+    const i = document.createElement('i');
+    if (!animate) return slot.append(i);
+    i.className = 'go';
+    allDoneStar.soon = setTimeout(() => { allDoneStar.soon = null; slot.append(i); }, 260); // just after the last tick is drawn
+  }
 
   const CHECK = '<button class="check" type="button" tabindex="-1" aria-label="done"><img class="b0" src="assets/todo-box.png" alt="" decoding="sync"></button>';
 
@@ -2402,6 +2456,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
 
   function renderTodos(focusAt, atStart) {
     if (!todos.length) todos.push({ t: '', d: false });
+    allDoneStar(false);
     list.innerHTML = '';
     todos.forEach((td, i) => {
       const li = document.createElement('li');
