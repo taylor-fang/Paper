@@ -1620,18 +1620,22 @@ I hope Paper can make writing feel a bit more natural for you.`;
       p.after(list);
       if (rest.childNodes.length) list.after(rest);
     }
-    // a line break at the very start of a line with words after it (an old paste left these): an empty line of its
-    // own above, so it behaves like one and deleting it leaves the line as it should be
+    // line breaks standing in for lines (an old paste left these: a break at the start of a line, or two in a row
+    // for an empty line, which shows but can't be clicked or arrowed into): the paragraph becomes one line per
+    // break, so each empty line is a real one. A single shift-enter break between words stays
+    const bare = (n) => n.nodeType === 3 && !n.data.replace(/\u200b/g, '');
     for (const p of [...ed.querySelectorAll('#editor > p')]) {
-      let f = p.firstChild;
-      while (f && f.nodeType === 3 && !f.data.replace(/\u200b/g, '')) f = f.nextSibling;
-      if (f?.nodeName !== 'BR' || !f.nextSibling) continue;
-      const rest = [...p.childNodes].slice([...p.childNodes].indexOf(f) + 1);
-      if (!rest.some((n) => n.nodeType === 1 || n.data.replace(/\u200b/g, '').trim())) continue;
-      const empty = document.createElement('p');
-      p.before(empty);
-      while (p.firstChild !== f) empty.append(p.firstChild);
-      empty.append(f);
+      const kids = [...p.childNodes].filter((n) => !bare(n));
+      if (kids.length < 2 || !kids.some((n, k) => n.nodeName === 'BR' && (k === 0 || kids[k + 1]?.nodeName === 'BR'))) continue;
+      let line = document.createElement('p');
+      const out = [line];
+      for (const n of [...p.childNodes]) {
+        if (n.nodeName === 'BR') { line = document.createElement('p'); out.push(line); }
+        else line.append(n);
+      }
+      if (out.length > 1 && ![...out.at(-1).childNodes].some((n) => !bare(n))) out.pop();
+      for (const l of out) if (![...l.childNodes].some((n) => !bare(n))) l.replaceChildren(document.createElement('br'));
+      p.replaceWith(...out);
     }
     // a line break at the very end of a line with words on it shows nothing, but catches the cursor (and
     // pasting into an item leaves one): it goes. One that holds an empty line open stays
@@ -1714,6 +1718,12 @@ I hope Paper can make writing feel a bit more natural for you.`;
     const wrapIn = (el, tag) => { const w = doc.createElement(tag); el.before(w); w.append(el); return w; };
     const before = (n) => { let x = n.previousSibling; while (x && x.nodeType === 3 && !x.data.trim()) x = x.previousSibling; return x; };
     const fromPaper = !!body.querySelector('[data-paper]');
+    // a wrapper around whole paragraphs (Paper's own copy wraps them in one div, other apps a div, section or b
+    // around everything) is only a wrapper: it goes, so each paragraph stays a line of its own, not one long
+    // paragraph with line breaks in it (whose empty lines show but can't be clicked or arrowed into)
+    for (const w of [...body.querySelectorAll('div, section, article, main, header, footer, aside, b, span')].reverse()) {
+      if (w.isConnected && [...w.children].some((c) => /^(P|DIV|H[1-6]|UL|OL|BLOCKQUOTE|PRE|SECTION|ARTICLE)$/.test(c.nodeName))) unwrap(w);
+    }
 
     // Word writes a bullet as a paragraph with the bullet typed in front: it becomes a list item
     for (const p of [...body.querySelectorAll('p[style*="mso-list"]')]) {
