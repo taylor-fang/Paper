@@ -4,6 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Paper</title>
+<!-- the link preview in Messages, Slack and the like: a blank sheet on the right of the desk (a flat offset shadow behind it), "Paper / for writers" handwritten on the left, level with the middle of the sheet -->
+<meta name="description" content="A surface for writers.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Paper">
+<meta property="og:title" content="Paper">
+<meta property="og:description" content="A surface for writers.">
+<meta property="og:url" content="https://paperwrite.space/">
+<meta property="og:image" content="https://paperwrite.space/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A blank sheet of paper on the right of a desk, with &quot;Paper for writers&quot; handwritten on the left">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f3efe6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Paper">
@@ -152,6 +164,9 @@
   /* the matches: soft marks laid over the words (multiplied, so the ink stays black), the current one stronger */
   /* the page's selection is drawn by Paper (drawSelection), so Safari's own is kept clear */
   #editor::selection, #editor ::selection { background: transparent; }
+  /* a phone: iPhones draw their own selection (with its handles) whatever the page says, so Paper's isn't drawn too */
+  .touch #selection { display: none; }
+  .touch #editor::selection, .touch #editor ::selection { background: rgba(112, 160, 70, .46); }
   #selection { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; } /* just behind the words */
   #selection i { position: absolute; background: rgba(112, 160, 70, .46); }
   #marks { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; mix-blend-mode: multiply; }
@@ -274,7 +289,7 @@
   .papers-view #notesWrap, .papers-view #todoWrap, .papers-view #options .ld { display: none; }
   .papers-view #count, .papers-view #export { visibility: hidden; }
   #dlBtn img { display: block; height: 15px; width: auto; } /* a hand-drawn down arrow, to the Mac app's download page */
-  .papers-view #dlBtn { visibility: hidden; }
+  .papers-view #dlBtn { display: none; } /* gone, not just hidden, so the back arrow lines up with the pages' right edge */
   .papers-view .tail { margin-top: 0; } /* the settings above it are hidden, so the arrow sits closer to the pages: about half the room */
   .pgrid { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 18px 18px; padding: 2px 1px 8px; } /* rows as tall as the pages, so the gap below each page stays */
   .pg { aspect-ratio: 8.5 / 11; min-width: 0; border: 1px solid #c4bdb0; background: var(--paper); padding: 10px 10px; cursor: pointer; overflow: hidden; }
@@ -524,12 +539,12 @@
   }
 
   /* ================= settings ================= */
-  const DEFAULTS = { font: 'inter', size: 12, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5 (1.3 on a phone, where lines are short)
+  const DEFAULTS = { font: 'inter', size: touch ? 14 : 12, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5 (on a phone Inter 14, near the phone's own text size, at 1.3, where lines are short)
   const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
   // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
   // each paper keeps its own size
-  if (!s.sizes) s.sizes = { full: 12, sheet: 12 }; // the first visit's sizes; after that, always what you chose
+  if (!s.sizes) s.sizes = { full: DEFAULTS.size, sheet: DEFAULTS.size }; // the first visit's sizes; after that, always what you chose
   s.size = s.sizes[s.paper] ?? DEFAULTS.size;
 
   const CHOICES = {
@@ -1170,7 +1185,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1184,13 +1199,13 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 <u>How to use Paper</u>
 
 
-**Click on the right to see the sidebar.**
+**Tap on the right to see the sidebar.**
 
 
 - *Scratchpad.* Jot down notes or questions.
-- *Ta-da.* Outline and divide writing into chunks (and get gold stars!)
+- *Ta-da.* Outline and divide writing into chunks (and get a gold star!)
 - *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
-- *File management.* Export into .md or .docx, and see all your writing on tiny papers.
+- *Files.* Export into .md or .docx, and see all your writing on tiny papers.
 
 
 You can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
@@ -1236,7 +1251,13 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    const starter = touch ? STARTER.replace('Click on the right', 'Tap on the right').replace(/For full details and the open-source repo, see \[here\]\([^)]*\)\./, 'Desktop recommended.') : STARTER;
+    // a phone: "(desktop recommended)", in italics, beside How to use Paper, "A place for ease..." a paragraph of its own,
+    // no keyboard shortcuts, and the repo called the GitHub repo
+    const starter = touch ? STARTER
+      .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> *(desktop recommended)*')
+      .replace(' A place for ease,', '\n\n\nA place for ease,')
+      .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
+      .replace('the open-source repo', 'the open-source GitHub repo') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
