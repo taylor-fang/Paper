@@ -69,13 +69,13 @@
   ::selection { background: rgba(112, 160, 70, .46); } /* green, as mixed */
 
   /* ---------- paper: the whole screen ---------- */
-  /* the writing takes most of the window, 8% of it free either side (never less than 80px: clear of the side bar's
+  /* the writing takes most of the window, 15% of it free either side (never less than 80px: clear of the side bar's
      hover strip on the right, 72.8px, and the same on the left, so the writing stays centred) */
   /* the writing stays out of sight for the moment before the settings are applied, so it never shifts into place
      (and shows anyway after 3s, should the script ever fail) */
   html:not(.ready) #page, html:not(.ready) #bar { visibility: hidden; animation: reveal 0s 3s forwards; }
   @keyframes reveal { to { visibility: visible; } }
-  [data-paper="full"] #page { min-height: 100vh; padding: 14vh max(8vw, 80px) 50vh; }
+  [data-paper="full"] #page { min-height: 100vh; padding: 14vh max(15vw, 80px) 50vh; }
 
   /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
   [data-paper="sheet"] body { background: var(--desk); }
