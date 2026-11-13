@@ -356,6 +356,7 @@
   .touch, .touch body { overflow-x: hidden; } /* a phone: the page only ever moves up and down */
   .touch body { touch-action: pan-y pinch-zoom; }
   .touch #edge { width: 28px; } /* only the margin: a tap on the words places the cursor */
+  .touch[data-paper="full"] #page { padding: 14vh max(25vw, 80px) 50vh; } /* tablets keep the middle half; phones below */
   @media (max-width: 700px) {
     .touch[data-paper="full"] #page { padding: 56px 28px 50vh; }
   }
