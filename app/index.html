@@ -1193,15 +1193,15 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
 
-Paper is a surface for writers.
+This is Paper. A surface for writers.
 
 
-I created Paper because I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease, focus, and flow in writing.
+I created Paper because I wanted a simpler writing space. A place for single-mindedness, akin to a typewriter or physical journal. For more ease, focus, and flow in writing.
 
 
 <u>How to use Paper</u>
@@ -1262,6 +1262,8 @@ I hope Paper can make writing feel a bit more natural for you.`;
     // a phone: "(desktop recommended)", in italics, beside How to use Paper, "A place for ease..." a paragraph of its own,
     // no keyboard shortcuts, the repo called the GitHub repo, and otherwise the phone's words as they were
     const starter = touch ? STARTER
+      .replace('This is Paper. A surface for writers.', 'Paper is a surface for writers.')
+      .replace('I wanted a simpler writing space. A place for single-mindedness, akin to a typewriter or physical journal. For more ease,', 'I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease,')
       .replace('**Write anywhere. Tap on the right', '**Tap on the right')
       .replace('Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper)', 'Export into .md or .docx, and see all your writing on tiny papers.')
       .replace('I hope Paper can make writing feel a bit more natural for you.', 'I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.')
