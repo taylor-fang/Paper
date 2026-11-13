@@ -3,13 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Download Paper for Mac</title>
+<title>Paper App for Mac</title>
+<!-- the link preview in Messages, Slack and the like: a blank sheet on the right of the desk (a flat offset shadow behind it), "Paper / for writers" handwritten on the left, level with the middle of the sheet -->
+<meta name="description" content="A surface for writers.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Paper">
+<meta property="og:title" content="Paper App for Mac">
+<meta property="og:description" content="A surface for writers.">
+<meta property="og:url" content="https://paperwrite.space/download.html">
+<meta property="og:image" content="https://paperwrite.space/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A blank sheet of paper on the right of a desk, with &quot;Paper for writers&quot; handwritten on the left">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f3efe6">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/touch-icon.png">
 <link rel="preload" href="assets/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/PaperHand.css">
 <script>
+  // the Mac app's page is for computers: a phone or tablet goes back to writing
+  if (matchMedia('(hover: none) and (pointer: coarse)').matches) location.replace('./');
   // set like the writing page you came from: its font, size and spacing (Inter 15 at 1.5 until you change them)
   try {
     const s = JSON.parse(localStorage.getItem('paper.settings') || '{}');
@@ -37,12 +51,12 @@
   p { margin: 0 0 var(--lh); }
   /* labels in the handwriting, as in Paper's side bar */
   .hand { font: 400 24px/1.1 "Paper Hand", serif; text-transform: uppercase; letter-spacing: .03em; color: rgba(0, 0, 0, .9); }
-  h1.hand { margin: 0 0 var(--lh); font-size: 30px; }
+  h1 { margin: 0 0 var(--lh); font: 600 calc(var(--size) * 1.5)/1.2 var(--font); }
   h2.hand { margin: 0 0 calc(var(--lh) / 2); }
   .get { margin: 0 0 calc(var(--lh) * 1.6); }
-  .get a { color: var(--accent); text-decoration: none; }
-  .get a:hover { color: var(--ink); }
-  .get p { margin: calc(var(--lh) / 3) 0 0; font-style: italic; }
+  .get a { display: inline-block; padding: 10px 18px 8px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; } /* a box drawn in the same colour as the word */
+  .get a:hover { color: var(--ink); border-color: var(--ink); }
+  .get p { margin: calc(var(--lh) / 2) 0 0; }
   ol { margin: 0 0 var(--lh); padding-left: 1.4em; }
   li { margin-bottom: calc(var(--lh) / 4); padding-left: .2em; }
   li::marker { color: var(--accent); }
@@ -53,11 +67,11 @@
 </head>
 <body>
 <main>
-  <h1 class="hand">Download Paper for Mac</h1>
+  <h1>Paper App for Mac</h1>
 
   <div class="get">
     <a class="hand" href="Paper.zip" download>Download</a>
-    <p>macOS 13 or later, Apple silicon and Intel · about 1 MB</p>
+    <p>Compatible with macOS 13 or later, Apple silicon and Intel<br>About 1 MB</p>
   </div>
 
   <h2 class="hand">How to install</h2>
@@ -67,7 +81,7 @@
     <li><b>Open Paper.</b> The first time, macOS will say it can't check Paper, because it isn't available on the App Store yet. Click <b>Done</b>.</li>
     <li>Open <b>System Settings › Privacy &amp; Security</b>, scroll down to the message about Paper, and click <b>Open Anyway</b>.</li>
   </ol>
-  <p>You only need to do this once. (Hopefully I can add an Apple developer membership in the future so the app will be automatically verified.)</p>
+  <p>You only need to do this once.</p>
 
   <p>Paper is open source, so you can modify anything from the <a href="https://github.com/taylor-fang/Paper" target="_blank" rel="noopener">repo on GitHub</a>.</p>
 
