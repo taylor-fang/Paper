@@ -407,6 +407,24 @@
   // a phone or tablet: no mouse to hover with, so Paper is tapped instead
   const touch = matchMedia('(hover: none) and (pointer: coarse)').matches || /[?&]touch\b/.test(location.search); // ?touch tries it on a computer
   if (touch) root.classList.add('touch');
+  // ?margins: sliders for the open paper's side margins, to try sizes before choosing one (shows the CSS to keep)
+  if (/[?&]margins\b/.test(location.search)) addEventListener('DOMContentLoaded', () => {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:99;background:#fffbe9;border:1px solid #c9bfa8;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#222';
+    box.innerHTML = '<div>each side: <b></b>vw</div><input type="range" min="0" max="35" step="0.5" value="8" style="width:220px">'
+      + '<div>at least: <b></b>px</div><input type="range" min="16" max="400" step="4" value="80" style="width:220px">'
+      + '<div style="color:#7a6d55"></div><div style="margin-top:4px;user-select:all"></div><style></style>';
+    document.body.append(box);
+    const [vw, px] = box.querySelectorAll('input'), [bv, bp] = box.querySelectorAll('b'), [, , info, css] = box.querySelectorAll('div'), st = box.querySelector('style');
+    const show = () => {
+      const val = `max(${vw.value}vw, ${px.value}px)`, m = Math.max(innerWidth * vw.value / 100, +px.value);
+      bv.textContent = vw.value; bp.textContent = px.value;
+      st.textContent = `[data-paper="full"] #page { padding-left: ${val} !important; padding-right: ${val} !important; }`;
+      info.textContent = `window ${innerWidth}px, writing ${Math.round(innerWidth - 2 * m)}px wide`;
+      css.textContent = `padding: 14vh ${val} 50vh;`;
+    };
+    vw.oninput = px.oninput = show; addEventListener('resize', show); show();
+  });
   // an iPhone or iPad zooms in when you start typing in text under 16px, and the page then slides sideways; this
   // stops that zoom (pinching to zoom still works there)
   if (touch && (/iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1))) {
@@ -1186,7 +1204,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1200,19 +1218,19 @@ I created Paper because I wanted a simple writing space. A feeling of single-min
 <u>How to use Paper</u>
 
 
-**Tap on the right to see the sidebar.**
+**Write anywhere. Tap on the right to see the sidebar.**
 
 
 - *Scratchpad.* Jot down notes or questions.
 - *Ta-da.* Outline and divide writing into chunks (and get a gold star!)
 - *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
-- *Files.* Export into .md or .docx, and see all your writing on tiny papers.
+- *Files.* Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper)
 
 
-You can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
+You can use all the regular keyboard shortcuts. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
 
 
-I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.`;
+I hope Paper can make writing feel a bit more natural for you.`;
 
   // nothing written: no words and no list items
   const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn') && !notesText().trim() && !todos.some((t) => t.t.trim());
@@ -1253,8 +1271,11 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
     // a phone: "(desktop recommended)", in italics, beside How to use Paper, "A place for ease..." a paragraph of its own,
-    // no keyboard shortcuts, and the repo called the GitHub repo
+    // no keyboard shortcuts, the repo called the GitHub repo, and otherwise the phone's words as they were
     const starter = touch ? STARTER
+      .replace('**Write anywhere. Tap on the right', '**Tap on the right')
+      .replace('Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper)', 'Export into .md or .docx, and see all your writing on tiny papers.')
+      .replace('I hope Paper can make writing feel a bit more natural for you.', 'I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.')
       .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> *(desktop recommended)*')
       .replace(' A place for ease,', '\n\n\nA place for ease,')
       .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
