@@ -320,6 +320,10 @@
   #export .choice { display: inline-block; padding: 8px 5px; margin: -8px -5px; font: calc(15px + var(--adj))/1 var(--font); color: var(--accent); cursor: pointer; white-space: nowrap; }
   /* the side bar's sepia controls turn black when pointed at, at once, with no fade */
   #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, #dlBtn:hover img { filter: brightness(0); }
+  /* on a computer they're black from the start, the asterisk too, and the word count a dark grey (phones keep the sepia) */
+  html:not(.touch) #papersBtn, html:not(.touch) #export .sym, html:not(.touch) #dlBtn img, #edge img { filter: brightness(0); }
+  html:not(.touch) #export .choice { color: #000; }
+  html:not(.touch) #count { color: #555; }
 
   /* a thin five-armed asterisk (Helvetica's, at half its stroke) in sepia (#8c6640, a little lighter than the side bar's)
      at the middle of the right edge, shown when you come near it, opens the side bar */
@@ -407,24 +411,6 @@
   // a phone or tablet: no mouse to hover with, so Paper is tapped instead
   const touch = matchMedia('(hover: none) and (pointer: coarse)').matches || /[?&]touch\b/.test(location.search); // ?touch tries it on a computer
   if (touch) root.classList.add('touch');
-  // ?margins: sliders for the open paper's side margins, to try sizes before choosing one (shows the CSS to keep)
-  if (/[?&]margins\b/.test(location.search)) addEventListener('DOMContentLoaded', () => {
-    const box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:99;background:#fffbe9;border:1px solid #c9bfa8;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#222';
-    box.innerHTML = '<div>each side: <b></b>vw</div><input type="range" min="0" max="35" step="0.5" value="8" style="width:220px">'
-      + '<div>at least: <b></b>px</div><input type="range" min="16" max="400" step="4" value="80" style="width:220px">'
-      + '<div style="color:#7a6d55"></div><div style="margin-top:4px;user-select:all"></div><style></style>';
-    document.body.append(box);
-    const [vw, px] = box.querySelectorAll('input'), [bv, bp] = box.querySelectorAll('b'), [, , info, css] = box.querySelectorAll('div'), st = box.querySelector('style');
-    const show = () => {
-      const val = `max(${vw.value}vw, ${px.value}px)`, m = Math.max(innerWidth * vw.value / 100, +px.value);
-      bv.textContent = vw.value; bp.textContent = px.value;
-      st.textContent = `[data-paper="full"] #page { padding-left: ${val} !important; padding-right: ${val} !important; }`;
-      info.textContent = `window ${innerWidth}px, writing ${Math.round(innerWidth - 2 * m)}px wide`;
-      css.textContent = `padding: 14vh ${val} 50vh;`;
-    };
-    vw.oninput = px.oninput = show; addEventListener('resize', show); show();
-  });
   // an iPhone or iPad zooms in when you start typing in text under 16px, and the page then slides sideways; this
   // stops that zoom (pinching to zoom still works there)
   if (touch && (/iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1))) {
@@ -1634,6 +1620,19 @@ I hope Paper can make writing feel a bit more natural for you.`;
       p.after(list);
       if (rest.childNodes.length) list.after(rest);
     }
+    // a line break at the very start of a line with words after it (an old paste left these): an empty line of its
+    // own above, so it behaves like one and deleting it leaves the line as it should be
+    for (const p of [...ed.querySelectorAll('#editor > p')]) {
+      let f = p.firstChild;
+      while (f && f.nodeType === 3 && !f.data.replace(/\u200b/g, '')) f = f.nextSibling;
+      if (f?.nodeName !== 'BR' || !f.nextSibling) continue;
+      const rest = [...p.childNodes].slice([...p.childNodes].indexOf(f) + 1);
+      if (!rest.some((n) => n.nodeType === 1 || n.data.replace(/\u200b/g, '').trim())) continue;
+      const empty = document.createElement('p');
+      p.before(empty);
+      while (p.firstChild !== f) empty.append(p.firstChild);
+      empty.append(f);
+    }
     // a line break at the very end of a line with words on it shows nothing, but catches the cursor (and
     // pasting into an item leaves one): it goes. One that holds an empty line open stays
     for (const br of [...ed.querySelectorAll('p br, li br')]) {
@@ -1813,8 +1812,23 @@ I hope Paper can make writing feel a bit more natural for you.`;
       const block = n.nodeType === 1 && /^(P|UL|OL)$/.test(n.nodeName);
       if (block || (n.nodeType === 3 && !n.data.trim() && !run)) { run = null; if (!block) n.remove(); continue; }
       if (n.nodeName === 'BR' && run) { run = null; n.remove(); continue; }
+      if (n.nodeName === 'BR') { const e = doc.createElement('p'); e.append(doc.createElement('br')); n.replaceWith(e); continue; } // a second line break in a row: an empty line, not a break at the start of the next
       if (!run) { run = doc.createElement('p'); n.before(run); }
       run.append(n);
+    }
+    // a pasted paragraph with line breaks in it (a div of lines, "a<br><br>b") becomes one line per break, as the
+    // page writes them, so an empty line in it is a real empty line (from Paper, a shift-enter break stays)
+    if (!fromPaper) for (const p of [...body.querySelectorAll('p')]) {
+      if (![...p.childNodes].some((n) => n.nodeName === 'BR') || p.parentElement !== body) continue;
+      let line = doc.createElement('p');
+      const out = [line];
+      for (const n of [...p.childNodes]) {
+        if (n.nodeName === 'BR') { line = doc.createElement('p'); out.push(line); }
+        else line.append(n);
+      }
+      if (out.length > 1 && !out.at(-1).childNodes.length) out.pop(); // a break at the very end holds nothing open
+      for (const l of out) if (!l.childNodes.length || !l.textContent.trim() && !l.querySelector('sup')) l.innerHTML = '<br>';
+      p.replaceWith(...out);
     }
     // collapse source-code whitespace, and drop empty marks
     const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
