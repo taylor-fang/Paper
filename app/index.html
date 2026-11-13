@@ -76,6 +76,9 @@
   html:not(.ready) #page, html:not(.ready) #bar { visibility: hidden; animation: reveal 0s 3s forwards; }
   @keyframes reveal { to { visibility: visible; } }
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh max(8vw, 80px) 50vh; }
+  /* and on a computer the writing is at most 44em wide, centred, so long lines don't run across a big window; never
+     narrower than 44em is at 14pt (821px), so small sizes don't squeeze into a thin column */
+  html:not(.touch)[data-paper="full"] #lines { max-width: max(44em, 821px); margin-left: auto; margin-right: auto; }
 
   /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
   [data-paper="sheet"] body { background: var(--desk); }
