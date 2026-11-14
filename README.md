@@ -50,6 +50,7 @@ Your work is automatically saved, but browsers can clear your cache. The Mac app
 
 - **Calm cursor**: the cursor is translucent and breathes slowly instead of flashing
 - **Ta-da**: get a gold star for completing all your to-do tasks
+- **Footnotes**: footnotes (⌘⌥F) appear in the margins
 - **No typos**: typos are not pointed out or corrected; take multiple passes through your writing instead (and coin new words!)
 - **Keep writing**: on the Mac app, papers deleted from tiny papers go to `~/Paper/removed` first, in case you ever want to come back to past writing
 
