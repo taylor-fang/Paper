@@ -379,14 +379,14 @@
 
   <div id="page">
     <div id="sheets"></div>
-    <div id="lines"><div id="selection" aria-hidden="true"></div><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div></div>
+    <div id="lines"><div id="selection" aria-hidden="true"></div><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="false" autocorrect="off" writingsuggestions="false"></div></div>
   </div>
 
   <div id="edge"><img src="assets/icon-asterisk.png" alt="" title="side bar"></div>
   <aside id="bar" inert>
     <section id="notesWrap">
       <h2>Notes</h2>
-      <div id="notes" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div>
+      <div id="notes" contenteditable="true" spellcheck="false" autocorrect="off" writingsuggestions="false"></div>
     </section>
     <section id="todoWrap">
       <h2>To do<span id="allDone" aria-hidden="true"></span></h2>
@@ -2540,7 +2540,7 @@ I hope Paper can help you write a bit more naturally.`;
   /* the to-do list is one editable area, so a drag can select across items and delete,
      cut, copy, paste or type over all of them; Paper keeps the list itself in step */
   list.contentEditable = 'true';
-  list.spellcheck = true;
+  list.spellcheck = false; // typos aren't pointed out, as on the page
   list.setAttribute('autocorrect', 'off');
   list.setAttribute('writingsuggestions', 'false');
 
@@ -2875,7 +2875,7 @@ I hope Paper can help you write a bit more naturally.`;
       requestAnimationFrame(back);
     });
     body.addEventListener('focus', () => requestAnimationFrame(() => { if (heldAt && Math.abs(scrollY - heldAt[1]) > 2) scrollTo(heldAt[0], heldAt[1]); }));
-    body.spellcheck = true;
+    body.spellcheck = false;
     body.addEventListener('paste', (e) => {
       e.preventDefault();
       const text = e.clipboardData.getData('text/plain');
