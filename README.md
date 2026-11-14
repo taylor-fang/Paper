@@ -8,7 +8,7 @@ I created Paper because I wanted a simpler writing space. A place for single-min
 
 There are two ready-made ways to use Paper:
 
-- **Mac app** (recommended): download [here](https://github.com/taylor-fang/Paper/releases/latest/download/Paper.zip)
+- **Mac app** (recommended): download [here](https://github.com/taylor-fang/Paper/releases/latest/download/Paper.zip), unzip, and drag Paper to Applications. The first time, open it from System Settings > Privacy & Security > Open Anyway
 - **Browser version**: [paperwrite.space](https://paperwrite.space)
 
 <p align="center"><img src="media/paper.png" alt="&quot;Paper for writers&quot; handwritten across an empty Paper window" width="860"></p>
@@ -45,6 +45,13 @@ Your work is automatically saved, but browsers can clear your cache. The Mac app
 | ⌘W | Close the window (Mac app) |
 | ⌃⌘F | Full screen (Mac app) |
 | ⌘M · ⌘H · ⌘Q | Minimise · hide · quit (Mac app) |
+
+## Small details
+
+- **Calm cursor**: the cursor is translucent and breathes slowly instead of flashing
+- **Ta-da**: get a gold star for completing all your to-do tasks
+- **No typos**: typos are not pointed out or corrected; take multiple passes through your writing instead (and coin new words!)
+- **Keep writing**: on the Mac app, papers deleted from tiny papers go to `~/Paper/removed` first, in case you ever want to come back to past writing
 
 ---
 
