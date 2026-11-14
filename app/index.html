@@ -547,7 +547,7 @@
   }
 
   /* ================= settings ================= */
-  const DEFAULTS = { font: 'inter', size: touch ? 14 : 12, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5 (on a phone Inter 14, near the phone's own text size, at 1.3, where lines are short)
+  const DEFAULTS = { font: 'inter', size: 14, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 14, spacing 1.5 (on a phone also 14, near the phone's own text size, at 1.3, where lines are short)
   const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
   // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
