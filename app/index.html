@@ -3075,6 +3075,9 @@ I hope Paper can help you write a bit more naturally.`;
     for (const x of box.querySelectorAll('[style]')) x.removeAttribute('style');
     // empty lines stay lines: an empty paragraph holds a break so other apps keep it
     for (const p of box.querySelectorAll('p')) if (!p.textContent.replace(/[\s​]/g, '') && !p.querySelector('br, sup')) p.innerHTML = '<br>';
+    // no space around lines and lists, said outright: Google Docs and Word otherwise add their own after each one,
+    // where Paper's spacing is only its empty lines
+    for (const x of box.querySelectorAll('p, li, ul, ol')) x.setAttribute('style', 'margin-top:0;margin-bottom:0');
     const html = box.innerHTML.replace(/​/g, '');
     // plain text: a line per paragraph or list item, empty lines kept, lists marked
     const lines = [];
