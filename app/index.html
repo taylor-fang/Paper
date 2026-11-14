@@ -1193,7 +1193,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1213,13 +1213,13 @@ I created Paper because I wanted a simpler writing space. A place for single-min
 - *Scratchpad.* Jot down notes or questions.
 - *Ta-da.* Outline and divide writing into chunks (and get a gold star!)
 - *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
-- *Files.* Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper)
+- *Files.* Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper).
 
 
 You can use all the regular keyboard shortcuts. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
 
 
-I hope Paper can make writing feel a bit more natural for you.`;
+I hope Paper can help you write a bit more naturally.`;
 
   // nothing written: no words and no list items
   const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn') && !notesText().trim() && !todos.some((t) => t.t.trim());
@@ -1259,16 +1259,13 @@ I hope Paper can make writing feel a bit more natural for you.`;
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    // a phone: "(desktop recommended)", in italics, beside How to use Paper, "A place for ease..." a paragraph of its own,
+    // a phone: "(desktop recommended)", in italics, beside How to use Paper, "For more ease..." a paragraph of its own,
     // no keyboard shortcuts, the repo called the GitHub repo, and otherwise the phone's words as they were
     const starter = touch ? STARTER
       .replace('This is Paper. A surface for writers.', 'Paper is a surface for writers.')
-      .replace('I wanted a simpler writing space. A place for single-mindedness, akin to a typewriter or physical journal. For more ease,', 'I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease,')
-      .replace('**Write anywhere. Tap on the right', '**Tap on the right')
-      .replace('Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper)', 'Export into .md or .docx, and see all your writing on tiny papers.')
-      .replace('I hope Paper can make writing feel a bit more natural for you.', 'I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.')
+      .replace(' For more ease,', '\n\n\nFor more ease,')
+      .replace('Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper).', 'Export into .md or .docx, and see all your writing on tiny papers.')
       .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> *(desktop recommended)*')
-      .replace(' A place for ease,', '\n\n\nA place for ease,')
       .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
       .replace('the open-source repo', 'the open-source GitHub repo') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
