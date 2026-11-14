@@ -76,6 +76,9 @@
   html:not(.ready) #page, html:not(.ready) #bar { visibility: hidden; animation: reveal 0s 3s forwards; }
   @keyframes reveal { to { visibility: visible; } }
   [data-paper="full"] #page { min-height: 100vh; padding: 14vh max(8vw, 80px) 50vh; }
+  /* and on a computer the writing is at most 44em wide, centred, so long lines don't run across a big window; never
+     narrower than 44em is at 14pt (821px), so small sizes don't squeeze into a thin column */
+  html:not(.touch)[data-paper="full"] #lines { max-width: max(44em, 821px); margin-left: auto; margin-right: auto; }
 
   /* ---------- paper: letter-size leaves, a new one when the last is full ---------- */
   [data-paper="sheet"] body { background: var(--desk); }
@@ -320,6 +323,10 @@
   #export .choice { display: inline-block; padding: 8px 5px; margin: -8px -5px; font: calc(15px + var(--adj))/1 var(--font); color: var(--accent); cursor: pointer; white-space: nowrap; }
   /* the side bar's sepia controls turn black when pointed at, at once, with no fade */
   #papersBtn:hover, #papersBtn:active, #export .sym:hover, #export .sym:active, #export .choice:hover, #dlBtn:hover img { filter: brightness(0); }
+  /* on a computer they're black from the start, the asterisk too, and the word count a dark grey (phones keep the sepia) */
+  html:not(.touch) #papersBtn, html:not(.touch) #export .sym, html:not(.touch) #dlBtn img, #edge img { filter: brightness(0); }
+  html:not(.touch) #export .choice { color: #000; }
+  html:not(.touch) #count { color: #555; }
 
   /* a thin five-armed asterisk (Helvetica's, at half its stroke) in sepia (#8c6640, a little lighter than the side bar's)
      at the middle of the right edge, shown when you come near it, opens the side bar */
@@ -356,6 +363,7 @@
   .touch, .touch body { overflow-x: hidden; } /* a phone: the page only ever moves up and down */
   .touch body { touch-action: pan-y pinch-zoom; }
   .touch #edge { width: 28px; } /* only the margin: a tap on the words places the cursor */
+  .touch[data-paper="full"] #page { padding: 14vh max(25vw, 80px) 50vh; } /* tablets keep the middle half; phones below */
   @media (max-width: 700px) {
     .touch[data-paper="full"] #page { padding: 56px 28px 50vh; }
   }
@@ -371,14 +379,14 @@
 
   <div id="page">
     <div id="sheets"></div>
-    <div id="lines"><div id="selection" aria-hidden="true"></div><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div></div>
+    <div id="lines"><div id="selection" aria-hidden="true"></div><div id="shims" aria-hidden="true"></div><div id="editor" contenteditable="true" spellcheck="false" autocorrect="off" writingsuggestions="false"></div></div>
   </div>
 
   <div id="edge"><img src="assets/icon-asterisk.png" alt="" title="side bar"></div>
   <aside id="bar" inert>
     <section id="notesWrap">
       <h2>Notes</h2>
-      <div id="notes" contenteditable="true" spellcheck="true" autocorrect="off" writingsuggestions="false"></div>
+      <div id="notes" contenteditable="true" spellcheck="false" autocorrect="off" writingsuggestions="false"></div>
     </section>
     <section id="todoWrap">
       <h2>To do<span id="allDone" aria-hidden="true"></span></h2>
@@ -539,7 +547,7 @@
   }
 
   /* ================= settings ================= */
-  const DEFAULTS = { font: 'inter', size: touch ? 14 : 12, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 12, spacing 1.5 (on a phone Inter 14, near the phone's own text size, at 1.3, where lines are short)
+  const DEFAULTS = { font: 'inter', size: 14, spacing: touch ? 1.3 : 1.5, paper: 'full', unit: 'pt' }; // a first visit opens on Inter 14, spacing 1.5 (on a phone also 14, near the phone's own text size, at 1.3, where lines are short)
   const s = Object.assign({}, DEFAULTS, window.PAPER_SETTINGS || JSON.parse(local.get('settings') || '{}'));
   // sizes used to be pixels; they're points now, as in Pages and Word, so carry an old setting across
   if (s.unit !== 'pt') { s.size = Math.round((+s.size || 20) * .75); s.unit = 'pt'; }
@@ -1185,33 +1193,33 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
 
-Paper is a surface for writers.
+This is Paper. A surface for writers.
 
 
-I created Paper because I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease, focus, and flow in writing.
+I created Paper because I wanted a simpler writing space. A place for single-mindedness, akin to a typewriter or physical journal. For more ease, focus, and flow in writing.
 
 
 <u>How to use Paper</u>
 
 
-**Tap on the right to see the sidebar.**
+**Write anywhere. Tap on the right to see the sidebar.**
 
 
 - *Scratchpad.* Jot down notes or questions.
 - *Ta-da.* Outline and divide writing into chunks (and get a gold star!)
 - *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
-- *Files.* Export into .md or .docx, and see all your writing on tiny papers.
+- *Files.* Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper).
 
 
-You can use all the regular keyboard shortcuts to italicize, bold, copy, link, undo, footnote, etc. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
+You can use all the regular keyboard shortcuts. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
 
 
-I hope Paper can help you clear mental clutter and write in a way which feels a bit more natural.`;
+I hope Paper can help you write a bit more naturally.`;
 
   // nothing written: no words and no list items
   const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn') && !notesText().trim() && !todos.some((t) => t.t.trim());
@@ -1251,11 +1259,13 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
-    // a phone: "(desktop recommended)", in italics, beside How to use Paper, "A place for ease..." a paragraph of its own,
-    // no keyboard shortcuts, and the repo called the GitHub repo
+    // a phone: "(desktop recommended)", in italics, beside How to use Paper, "For more ease..." a paragraph of its own,
+    // no keyboard shortcuts, the repo called the GitHub repo, and otherwise the phone's words as they were
     const starter = touch ? STARTER
+      .replace('This is Paper. A surface for writers.', 'Paper is a surface for writers.')
+      .replace(' For more ease,', '\n\n\nFor more ease,')
+      .replace('Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper).', 'Export into .md or .docx, and see all your writing on tiny papers.')
       .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> *(desktop recommended)*')
-      .replace(' A place for ease,', '\n\n\nA place for ease,')
       .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
       .replace('the open-source repo', 'the open-source GitHub repo') : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
@@ -1612,6 +1622,23 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
       p.after(list);
       if (rest.childNodes.length) list.after(rest);
     }
+    // line breaks standing in for lines (an old paste left these: a break at the start of a line, or two in a row
+    // for an empty line, which shows but can't be clicked or arrowed into): the paragraph becomes one line per
+    // break, so each empty line is a real one. A single shift-enter break between words stays
+    const bare = (n) => n.nodeType === 3 && !n.data.replace(/\u200b/g, '');
+    for (const p of [...ed.querySelectorAll('#editor > p')]) {
+      const kids = [...p.childNodes].filter((n) => !bare(n));
+      if (kids.length < 2 || !kids.some((n, k) => n.nodeName === 'BR' && (k === 0 || kids[k + 1]?.nodeName === 'BR'))) continue;
+      let line = document.createElement('p');
+      const out = [line];
+      for (const n of [...p.childNodes]) {
+        if (n.nodeName === 'BR') { line = document.createElement('p'); out.push(line); }
+        else line.append(n);
+      }
+      if (out.length > 1 && ![...out.at(-1).childNodes].some((n) => !bare(n))) out.pop();
+      for (const l of out) if (![...l.childNodes].some((n) => !bare(n))) l.replaceChildren(document.createElement('br'));
+      p.replaceWith(...out);
+    }
     // a line break at the very end of a line with words on it shows nothing, but catches the cursor (and
     // pasting into an item leaves one): it goes. One that holds an empty line open stays
     for (const br of [...ed.querySelectorAll('p br, li br')]) {
@@ -1693,6 +1720,12 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     const wrapIn = (el, tag) => { const w = doc.createElement(tag); el.before(w); w.append(el); return w; };
     const before = (n) => { let x = n.previousSibling; while (x && x.nodeType === 3 && !x.data.trim()) x = x.previousSibling; return x; };
     const fromPaper = !!body.querySelector('[data-paper]');
+    // a wrapper around whole paragraphs (Paper's own copy wraps them in one div, other apps a div, section or b
+    // around everything) is only a wrapper: it goes, so each paragraph stays a line of its own, not one long
+    // paragraph with line breaks in it (whose empty lines show but can't be clicked or arrowed into)
+    for (const w of [...body.querySelectorAll('div, section, article, main, header, footer, aside, b, span')].reverse()) {
+      if (w.isConnected && [...w.children].some((c) => /^(P|DIV|H[1-6]|UL|OL|BLOCKQUOTE|PRE|SECTION|ARTICLE)$/.test(c.nodeName))) unwrap(w);
+    }
 
     // Word writes a bullet as a paragraph with the bullet typed in front: it becomes a list item
     for (const p of [...body.querySelectorAll('p[style*="mso-list"]')]) {
@@ -1791,8 +1824,23 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
       const block = n.nodeType === 1 && /^(P|UL|OL)$/.test(n.nodeName);
       if (block || (n.nodeType === 3 && !n.data.trim() && !run)) { run = null; if (!block) n.remove(); continue; }
       if (n.nodeName === 'BR' && run) { run = null; n.remove(); continue; }
+      if (n.nodeName === 'BR') { const e = doc.createElement('p'); e.append(doc.createElement('br')); n.replaceWith(e); continue; } // a second line break in a row: an empty line, not a break at the start of the next
       if (!run) { run = doc.createElement('p'); n.before(run); }
       run.append(n);
+    }
+    // a pasted paragraph with line breaks in it (a div of lines, "a<br><br>b") becomes one line per break, as the
+    // page writes them, so an empty line in it is a real empty line (from Paper, a shift-enter break stays)
+    if (!fromPaper) for (const p of [...body.querySelectorAll('p')]) {
+      if (![...p.childNodes].some((n) => n.nodeName === 'BR') || p.parentElement !== body) continue;
+      let line = doc.createElement('p');
+      const out = [line];
+      for (const n of [...p.childNodes]) {
+        if (n.nodeName === 'BR') { line = doc.createElement('p'); out.push(line); }
+        else line.append(n);
+      }
+      if (out.length > 1 && !out.at(-1).childNodes.length) out.pop(); // a break at the very end holds nothing open
+      for (const l of out) if (!l.childNodes.length || !l.textContent.trim() && !l.querySelector('sup')) l.innerHTML = '<br>';
+      p.replaceWith(...out);
     }
     // collapse source-code whitespace, and drop empty marks
     const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
@@ -2492,7 +2540,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
   /* the to-do list is one editable area, so a drag can select across items and delete,
      cut, copy, paste or type over all of them; Paper keeps the list itself in step */
   list.contentEditable = 'true';
-  list.spellcheck = true;
+  list.spellcheck = false; // typos aren't pointed out, as on the page
   list.setAttribute('autocorrect', 'off');
   list.setAttribute('writingsuggestions', 'false');
 
@@ -2827,7 +2875,7 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
       requestAnimationFrame(back);
     });
     body.addEventListener('focus', () => requestAnimationFrame(() => { if (heldAt && Math.abs(scrollY - heldAt[1]) > 2) scrollTo(heldAt[0], heldAt[1]); }));
-    body.spellcheck = true;
+    body.spellcheck = false;
     body.addEventListener('paste', (e) => {
       e.preventDefault();
       const text = e.clipboardData.getData('text/plain');
@@ -3027,6 +3075,9 @@ I hope Paper can help you clear mental clutter and write in a way which feels a 
     for (const x of box.querySelectorAll('[style]')) x.removeAttribute('style');
     // empty lines stay lines: an empty paragraph holds a break so other apps keep it
     for (const p of box.querySelectorAll('p')) if (!p.textContent.replace(/[\s​]/g, '') && !p.querySelector('br, sup')) p.innerHTML = '<br>';
+    // no space around lines and lists, said outright: Google Docs and Word otherwise add their own after each one,
+    // where Paper's spacing is only its empty lines
+    for (const x of box.querySelectorAll('p, li, ul, ol')) x.setAttribute('style', 'margin-top:0;margin-bottom:0');
     const html = box.innerHTML.replace(/​/g, '');
     // plain text: a line per paragraph or list item, empty lines kept, lists marked
     const lines = [];

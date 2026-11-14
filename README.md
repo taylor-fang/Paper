@@ -1,43 +1,34 @@
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="media/title-dark.png">
-    <img src="media/title-light.png" alt="Paper" height="23">
-  </picture>
-</h1>
+# Paper
+
+<p align="center"><img src="media/paper.png" alt="&quot;Paper for writers&quot; handwritten across an empty Paper window" width="860"></p>
 
 Paper is a surface for writers.
 
-I created Paper because I wanted a simple writing space. A feeling of single-mindedness, akin to a typewriter or physical journal. A place for ease and focus in writing.
-
 Paper is open-source under the [MIT license](LICENSE) so you can customize it the way you like (including using your own handwriting, with [Paper Hand](https://github.com/taylor-fang/handwriting)!)
+
+I created Paper because I wanted a simpler writing space. A place for single-mindedness, akin to a typewriter or physical journal. For more ease, focus, and flow in writing.
 
 There are two ready-made ways to use Paper:
 
-- **Mac app** (recommended): download \[here\]
-- **Browser version**: \[insert link\]
+- **Mac app** (recommended): download [here](https://github.com/taylor-fang/Paper/releases/latest/download/Paper.zip), unzip, and drag Paper to Applications. The first time, open it from System Settings > Privacy & Security > Open Anyway
+- **Browser version**: [paperwrite.space](https://paperwrite.space)
 
-<p align="center"><img src="media/writing.jpg" alt="Writing in Paper: &quot;This is what writing in Paper is like.&quot; on an otherwise empty page" width="860"></p>
+## Navigation
 
-## How to Use Paper
+A sidebar shows up at hover on the right, with sections for **notes**, a **to-do** list, and a small palette of **visual settings**.
 
-A sidebar shows up at hover on the right. The sidebar includes sections for:
+Click the **envelope icon** to export as .md or .docx.
 
-- **Scratchpad.** Jot down notes or questions that arise which don’t fit anywhere yet.
-- **To-do.** Outline and divide writing into chunks, with a satisfying check for each section completed.
-- **Visual assist.** Click the settings to cycle through a small palette of options.
-- **Files.** Export into **.md or .docx**, and see all your writing on tiny papers.
+Click the **papers icon** to add a new paper (click plus icon) and see past papers.
 
-Writing auto-saves and you can use the regular keyboard shortcuts (see [All Shortcuts](#all-shortcuts)) to italicize, bold, copy, link, undo, footnote, etc.
+Your work is automatically saved, but browsers can clear your cache. The Mac app is recommended.
 
-## Saving Papers
+- <ins>On browser</ins>: add Paper to your [Dock](https://support.apple.com/guide/safari/add-to-dock-ibrw9e991864/mac) (on Mac) or [Home Screen](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios) (on iPhone)
+- <ins>On the Mac app</ins>: papers are saved as files in the `~/Paper` folder
 
-On the website, papers are saved in your browser’s own storage. Adding Paper to your [Dock](https://support.apple.com/guide/safari/add-to-dock-ibrw9e991864/mac) (on Mac) or [Home Screen](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios) (on iPhone) stops Safari from clearing it on its own.
+## Shortcuts
 
-In the Mac app, papers are saved as files in the `~/Paper` folder, with a daily backup in `~/Paper/.history`. Taking a paper off your “tiny papers” sidebar doesn't delete it forever, in case you ever want to come back to past writing; it goes to `~/Paper/removed`. Right-click Paper in the Dock to see the papers you have open.
-
-## All Shortcuts
-
-| Keys | What it does |
+| Keys | Actions |
 |---|---|
 | ⌘B · ⌘I · ⌘U | Bold, italic, underline |
 | ⌘K | Add or edit a link |
@@ -55,12 +46,18 @@ In the Mac app, papers are saved as files in the `~/Paper` folder, with a daily 
 | ⌃⌘F | Full screen (Mac app) |
 | ⌘M · ⌘H · ⌘Q | Minimise · hide · quit (Mac app) |
 
-## Feedback
+## Small details
 
-I’d love your feedback! Feel free to [open an issue](https://github.com/taylor-fang/Paper/issues) with any problems you run into.
-
-I hope Paper can help you clear mental clutter and find a writing practice which feels a bit more natural.
+- **Calm cursor**: the cursor is translucent and breathes slowly instead of flashing
+- **Ta-da**: get a gold star for completing all your to-do tasks
+- **Footnotes**: footnotes (⌘⌥F) appear in the margins
+- **No typos**: typos are not pointed out or corrected; take multiple passes through your writing instead (and coin new words!)
+- **Keep writing**: on the Mac app, papers deleted from tiny papers go to `~/Paper/removed` first, in case you ever want to come back to past writing
 
 ---
 
-Paper is under the [MIT license](LICENSE). The Inter typeface it uses is by Rasmus Andersson, under the [SIL Open Font License](app/assets/Inter-OFL.txt).
+I hope Paper can help you clear mental clutter and find a writing practice which feels a bit more natural.
+
+I’d love your feedback! Feel free to [open an issue](https://github.com/taylor-fang/Paper/issues) with any problems you run into.
+
+Paper is under the [MIT license](LICENSE). The Inter typeface it uses is by [Rasmus Andersson](https://rsms.me), under the SIL Open Font License.
