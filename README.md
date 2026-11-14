@@ -1,5 +1,7 @@
 # Paper
 
+<p align="center"><img src="media/paper.png" alt="&quot;Paper for writers&quot; handwritten across an empty Paper window" width="860"></p>
+
 Paper is a surface for writers.
 
 Paper is open-source under the [MIT license](LICENSE) so you can customize it the way you like (including using your own handwriting, with [Paper Hand](https://github.com/taylor-fang/handwriting)!)
@@ -10,8 +12,6 @@ There are two ready-made ways to use Paper:
 
 - **Mac app** (recommended): download [here](https://github.com/taylor-fang/Paper/releases/latest/download/Paper.zip), unzip, and drag Paper to Applications. The first time, open it from System Settings > Privacy & Security > Open Anyway
 - **Browser version**: [paperwrite.space](https://paperwrite.space)
-
-<p align="center"><img src="media/paper.png" alt="&quot;Paper for writers&quot; handwritten across an empty Paper window" width="860"></p>
 
 ## Navigation
 
