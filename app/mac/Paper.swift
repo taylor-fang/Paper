@@ -287,6 +287,8 @@ final class PaperWindow: NSObject, NSWindowDelegate {
 
         web = WKWebView(frame: .zero, configuration: config)
         web.setValue(false, forKey: "drawsBackground")
+        web.allowsMagnification = true // pinch to zoom, on the open page or a leaf
+        if #available(macOS 13.3, *) { web.isInspectable = true } // Safari › Develop › this Mac › Paper, to look inside the page
 
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1100, height: 780),
@@ -350,8 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         DispatchQueue.main.async {
             guard self.windows.isEmpty else { return }
             let first = self.open(paper: nil)
-            first.window.center()
-            first.window.setFrameAutosaveName("Paper")
+            self.fillScreen(first.window)
         }
     }
 
@@ -363,7 +364,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 already.window.makeKeyAndOrderFront(nil)
             } else {
                 let pw = open(paper: name)
-                if windows.count == 1 { pw.window.center(); pw.window.setFrameAutosaveName("Paper") }
+                if windows.count == 1 { fillScreen(pw.window) }
             }
         }
         NSApp.activate(ignoringOtherApps: true)
@@ -381,6 +382,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         pw.window.makeFirstResponder(pw.web)
         return pw
     }
+
+    // the first window opens filling the screen (all of it but the menu bar and Dock); more windows cascade from it
+    func fillScreen(_ window: NSWindow) {
+        if let frame = (window.screen ?? NSScreen.main)?.visibleFrame { window.setFrame(frame, display: true) }
+    }
+
+    // View › Zoom In, Zoom Out, Actual Size: the front window's page, bigger or smaller (pinching does the same)
+    var frontWeb: WKWebView? { (windows.first { $0.window == NSApp.keyWindow } ?? windows.last)?.web }
+    @objc func zoomIn(_ sender: Any?) { if let w = frontWeb { w.pageZoom = min(3, w.pageZoom * 1.1) } }
+    @objc func zoomOut(_ sender: Any?) { if let w = frontWeb { w.pageZoom = max(0.5, w.pageZoom / 1.1) } }
+    @objc func actualSize(_ sender: Any?) { frontWeb?.pageZoom = 1; frontWeb?.magnification = 1 }
 
     func closed(_ pw: PaperWindow) { windows.removeAll { $0 === pw } }
 
@@ -551,6 +563,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         main.addItem(submenu: edit, title: "Edit")
 
         let view = NSMenu(title: "View")
+        view.addItem(withTitle: "Zoom In", action: #selector(zoomIn(_:)), keyEquivalent: "=")
+        let plus = view.addItem(withTitle: "Zoom In", action: #selector(zoomIn(_:)), keyEquivalent: "+") // ⌘+ as well as ⌘=
+        plus.isAlternate = true
+        plus.keyEquivalentModifierMask = [.command, .shift]
+        view.addItem(withTitle: "Zoom Out", action: #selector(zoomOut(_:)), keyEquivalent: "-")
+        view.addItem(withTitle: "Actual Size", action: #selector(actualSize(_:)), keyEquivalent: "0")
+        view.addItem(.separator())
         view.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f").keyEquivalentModifierMask = [.command, .control]
         main.addItem(submenu: view, title: "View")
 
