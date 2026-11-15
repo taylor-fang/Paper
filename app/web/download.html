@@ -53,10 +53,10 @@
   .hand { font: 400 24px/1.1 "Paper Hand", serif; text-transform: uppercase; letter-spacing: .03em; color: rgba(0, 0, 0, .9); }
   h1 { margin: 0 0 var(--lh); font: 600 calc(var(--size) * 1.5)/1.2 var(--font); }
   h2.hand { margin: 0 0 calc(var(--lh) / 2); }
-  .get { margin: 0 0 calc(var(--lh) * 1.6); }
-  .get a { display: inline-block; padding: 10px 18px 8px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; } /* a box drawn in the same colour as the word */
+  /* step 1: the download, a box drawn in the same colour as the word, with the hand over all of it */
+  .get a { display: inline-block; padding: 10px 18px 8px; border: 1px solid var(--accent); color: var(--accent); text-decoration: none; cursor: pointer; }
   .get a:hover { color: var(--ink); border-color: var(--ink); }
-  .get p { margin: calc(var(--lh) / 2) 0 0; }
+  .get i { display: block; margin-top: calc(var(--lh) / 3); }
   ol { margin: 0 0 var(--lh); padding-left: 1.4em; }
   li { margin-bottom: calc(var(--lh) / 4); padding-left: .2em; }
   li::marker { color: var(--accent); }
@@ -69,13 +69,9 @@
 <main>
   <h1>Paper App for Mac</h1>
 
-  <div class="get">
-    <a class="hand" href="Paper.zip" download>Download</a>
-    <p>Compatible with macOS 13 or later, Apple silicon and Intel<br>About 1 MB</p>
-  </div>
-
   <h2 class="hand">How to install</h2>
   <ol>
+    <li class="get"><a class="hand" href="Paper.zip" download>Download</a><i>Compatible with macOS 13 or later, Apple silicon and Intel</i></li>
     <li>Open <b>Paper.zip</b> from your Downloads.</li>
     <li>Drag <b>Paper.app</b> into your <b>Applications</b> folder.</li>
     <li><b>Open Paper.</b> The first time, macOS will say it can't check Paper, because it isn't available on the App Store yet. Click <b>Done</b>.</li>

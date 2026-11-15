@@ -1193,7 +1193,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46'];
+  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46', '1oo68yo', 'kymhu4'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1201,10 +1201,10 @@
 This is Paper. A surface for writers.
 
 
-I created Paper because I wanted a simpler writing space. A place for single-mindedness, akin to a typewriter or physical journal. For more ease, focus, and flow in writing.
+I created Paper to be a simple writing space. A place for single-mindedness, akin to a typewriter or physical journal. A space for more ease, focus, and flow in writing.
 
 
-<u>How to use Paper</u>
+<u>*How to use Paper*</u>
 
 
 **Write anywhere. Tap on the right to see the sidebar.**
@@ -1263,11 +1263,18 @@ I hope Paper can help you write a bit more naturally.`;
     // no keyboard shortcuts, the repo called the GitHub repo, and otherwise the phone's words as they were
     const starter = touch ? STARTER
       .replace('This is Paper. A surface for writers.', 'Paper is a surface for writers.')
-      .replace(' For more ease,', '\n\n\nFor more ease,')
+      .replace(' A space for more ease,', '\n\n\nA space for more ease,')
       .replace('Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper).', 'Export into .md or .docx, and see all your writing on tiny papers.')
-      .replace('<u>How to use Paper</u>', '<u>How to use Paper</u> *(desktop recommended)*')
+      .replace('<u>*How to use Paper*</u>', '<u>*How to use Paper*</u> *(desktop recommended)*')
       .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
-      .replace('the open-source repo', 'the open-source GitHub repo') : STARTER;
+      .replace('the open-source repo', 'the open-source GitHub repo')
+      : native ? STARTER // the Mac app: shorter, plainer words
+        .replace('This is Paper. A surface for writers.', 'A surface for writers.')
+        .replace('*Ta-da.*', '*To-do.*')
+        .replace('Curated palette of 4 fonts with range for size & spacing.', 'Four fonts, range for size and spacing.')
+        .replace('(click plus for a new paper)', '(click + for a new paper)')
+        .replace('see [here](', 'see [GitHub](')
+      : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
     plainSpaces(ed);
     tidyBlocks();
