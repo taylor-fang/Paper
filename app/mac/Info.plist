@@ -38,9 +38,5 @@
       <dict><key>public.filename-extension</key><array><string>md</string><string>markdown</string><string>mdown</string></array></dict>
     </dict>
   </array>
-  <key>NSAppTransportSecurity</key>
-  <dict>
-    <key>NSAllowsLocalNetworking</key><true/>
-  </dict>
 </dict>
 </plist>

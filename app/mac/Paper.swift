@@ -342,12 +342,10 @@ final class PaperWindow: NSObject, NSWindowDelegate {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandlerWithReply {
     var windows: [PaperWindow] = []
-    var server: Process?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         NSApp.activate(ignoringOtherApps: true)
-        startLocalServer()
         // opened by double-clicking a file, the file's window is the first; otherwise the last paper
         DispatchQueue.main.async {
             guard self.windows.isEmpty else { return }
@@ -428,7 +426,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         return .terminateLater
     }
 
-    func applicationWillTerminate(_ notification: Notification) { server?.terminate() }
 
     // ---------- the page talks to the app ----------
 
@@ -498,40 +495,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         if let url = action.request.url { NSWorkspace.shared.open(url) }
         return nil
-    }
-
-    // ---------- the browser version, on Macs that have it ----------
-    // If ~/Paper/app/server.js and Node.js are both here, start the server too, so
-    // http://localhost:4610 works while the app is open. Elsewhere this does nothing.
-
-    func startLocalServer() {
-        let script = dataDir.appendingPathComponent("app/server.js")
-        guard FileManager.default.fileExists(atPath: script.path), let node = findNode() else { return }
-        var req = URLRequest(url: URL(string: "http://localhost:4610/api/files/notes")!)
-        req.timeoutInterval = 0.5
-        URLSession.shared.dataTask(with: req) { _, res, _ in
-            guard (res as? HTTPURLResponse)?.statusCode != 200 else { return } // already running
-            DispatchQueue.main.async {
-                let p = Process()
-                p.executableURL = URL(fileURLWithPath: node)
-                p.arguments = [script.path]
-                p.standardOutput = FileHandle.nullDevice
-                p.standardError = FileHandle.nullDevice
-                if (try? p.run()) != nil { self.server = p }
-            }
-        }.resume()
-    }
-
-    func findNode() -> String? {
-        var candidates: [String] = []
-        let nvm = home.appendingPathComponent(".nvm/versions/node")
-        if let versions = try? FileManager.default.contentsOfDirectory(atPath: nvm.path) {
-            for v in versions.sorted(by: { $0.compare($1, options: .numeric) == .orderedDescending }) {
-                candidates.append(nvm.appendingPathComponent(v).appendingPathComponent("bin/node").path)
-            }
-        }
-        candidates += ["/opt/homebrew/bin/node", "/usr/local/bin/node"]
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
     // ---------- menus: needed for copy, paste, undo and quit ----------
