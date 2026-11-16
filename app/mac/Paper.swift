@@ -2,8 +2,9 @@
 // It's self-contained: the page is bundled inside the app, and the app saves to ~/Paper itself,
 // in the same files the local server uses, so the two can be used side by side.
 //
-//   ~/Paper/page.html          the first paper (opens in any browser)
-//   ~/Paper/papers/*.html      every other paper; each has a .md copy beside it
+//   ~/Paper/first-paper.html   the first paper (opens in any browser), with a .md copy beside it
+//   ~/Paper/papers/*.html      every other paper, named after its first line; each has a .md copy beside it
+//   ~/Paper/.names.json        which file is which paper (see Names), so a file can be renamed
 //   ~/Paper/notes.txt          side bar notes
 //   ~/Paper/todo.md            side bar to-dos, as "- [ ]" lines
 //   ~/Paper/.settings.json     font, size, spacing, paper
@@ -27,7 +28,7 @@ let paperColor = NSColor(srgbRed: 0xf3 / 255, green: 0xef / 255, blue: 0xe6 / 25
 // ---------- files ----------
 
 enum Store {
-    static let named = ["page": "page.html", "notes": "notes.txt", "todo": "todo.md"]
+    static let named = ["notes": "notes.txt", "todo": "todo.md"]
     static let start = "<!-- paper:start -->"
     static let end = "<!-- paper:end -->"
 
@@ -40,7 +41,7 @@ enum Store {
     static func isPage(_ name: String) -> Bool { name == "page" || isPaperName(name) || isFileName(name) }
 
     static func url(_ name: String) -> URL? {
-        if isPaperName(name) { return dataDir.appendingPathComponent("papers").appendingPathComponent(name + ".html") }
+        if name == "page" || isPaperName(name) { return Names.locate(name) }
         if isFileName(name) { return opened()[name].map { URL(fileURLWithPath: $0) } }
         // each paper's own notes and to-dos: ~/Paper/notes/<paper>.txt, ~/Paper/todos/<paper>.md
         if let m = name.range(of: "^(notes|todo)-", options: .regularExpression) {
@@ -60,9 +61,9 @@ enum Store {
     }
     static func name(for file: URL) -> String {
         let path = file.standardizedFileURL.path
-        if path == dataDir.appendingPathComponent("page.html").path { return "page" }
-        let base = file.deletingPathExtension().lastPathComponent
-        if file.deletingLastPathComponent().standardizedFileURL.path == dataDir.appendingPathComponent("papers").path, isPaperName(base) { return base }
+        // one of Paper's own papers, whatever its file is called now
+        let dir = file.deletingLastPathComponent().standardizedFileURL.path
+        if [dataDir.standardizedFileURL.path, Names.papersDir.standardizedFileURL.path].contains(dir), let id = Names.id(of: file), id == "page" || isPaperName(id) { return id }
         var map = opened()
         if let known = map.first(where: { $0.value == path })?.key { return known }
         let name = "file-" + String(Int(Date().timeIntervalSince1970 * 1000), radix: 36)
@@ -83,10 +84,11 @@ enum Store {
     }
 
     // pages are saved as complete HTML documents, so they open on their own
-    static func wrap(_ body: String) -> String {
+    static func wrap(_ body: String, id: String) -> String {
         """
         <!doctype html>
         <meta charset="utf-8">
+        <meta name="paper" content="\(id)">
         <title>Paper</title>
         <style>body{max-width:34em;margin:12vh auto;padding:0 16px;font:20px/1.4 "Times New Roman",serif;color:#000;background:#f3efe6}sup.fn{font-size:.62em;color:#978972}</style>
         \(start)
@@ -147,7 +149,7 @@ enum Store {
             }
             return write(u, text)
         }
-        return write(u, isPage(name) ? wrap(text) : text)
+        return write(u, isPage(name) ? wrap(text, id: name) : text)
     }
 
     static func saveMarkdown(_ name: String, _ text: String) -> Bool {
@@ -177,9 +179,10 @@ enum Store {
 
     static func list() -> [[String: Any]] {
         var names = ["page"]
-        let dir = dataDir.appendingPathComponent("papers")
-        if let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) {
-            names += files.filter { $0.hasSuffix(".html") }.map { String($0.dropLast(5)) }.filter(isPaperName)
+        for u in Names.htmls(in: Names.papersDir) {
+            guard let id = Names.id(of: u), isPaperName(id), !names.contains(id) else { continue }
+            names.append(id)
+            if u.deletingPathExtension().lastPathComponent == id { Names.settle(id) } // a paper from before names: named now
         }
         names += opened().keys.sorted()
         return names.compactMap { name in
@@ -202,6 +205,7 @@ enum Store {
     static func removeIfBlank(_ name: String) -> Bool {
         guard isPaperName(name), isBlank(name), let u = url(name) else { return false }
         try? FileManager.default.removeItem(at: u)
+        var names = Names.load(); names.removeValue(forKey: name); Names.save(names)
         try? FileManager.default.removeItem(at: u.deletingPathExtension().appendingPathExtension("md"))
         for side in ["notes-" + name, "todo-" + name] { // only if they're empty too
             if let f = url(side), read(side).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { try? FileManager.default.removeItem(at: f) }
@@ -260,6 +264,145 @@ enum Store {
               let clean = try? JSONSerialization.data(withJSONObject: obj),
               let text = String(data: clean, encoding: .utf8) else { return "null" }
         return text
+    }
+}
+
+// ---------- paper file names ----------
+// Each paper has an ID the page knows it by ("page" for the first, "paper-..." for the rest), written inside its
+// file as <meta name="paper" content="ID">, so the file itself can be called anything. The first paper is
+// first-paper.html; every other paper is named after its first line (30 characters at most, cut at a word) when
+// you leave it, and starts as Untitled. A file you rename yourself keeps your name, whatever its length.
+// ~/Paper/.names.json remembers each paper's file and the name Paper last gave it; the local server does the same.
+
+enum Names {
+    static let indexURL = dataDir.appendingPathComponent(".names.json")
+    static let papersDir = dataDir.appendingPathComponent("papers")
+    static let fm = FileManager.default
+
+    static func load() -> [String: [String: String]] {
+        guard let d = try? Data(contentsOf: indexURL), let o = try? JSONSerialization.jsonObject(with: d) as? [String: [String: String]] else { return [:] }
+        return o
+    }
+    static func save(_ m: [String: [String: String]]) {
+        guard let d = try? JSONSerialization.data(withJSONObject: m, options: [.prettyPrinted, .sortedKeys]) else { return }
+        try? fm.createDirectory(at: dataDir, withIntermediateDirectories: true)
+        try? d.write(to: indexURL)
+    }
+    static func rel(_ u: URL) -> String {
+        let root = dataDir.standardizedFileURL.path + "/", p = u.standardizedFileURL.path
+        return p.hasPrefix(root) ? String(p.dropFirst(root.count)) : p
+    }
+    static func htmls(in dir: URL) -> [URL] {
+        ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []).filter { $0.pathExtension.lowercased() == "html" }
+    }
+    static func home(of id: String) -> URL { id == "page" ? dataDir : papersDir }
+
+    // the ID written inside a file; for a file from before IDs, what its name and place say
+    static func id(of u: URL) -> String? {
+        if let h = try? FileHandle(forReadingFrom: u) {
+            let head = String(decoding: h.readData(ofLength: 1024), as: UTF8.self)
+            try? h.close()
+            if let r = head.range(of: "<meta name=\"paper\" content=\"[a-z0-9-]+\">", options: .regularExpression) {
+                return head[r].components(separatedBy: "content=\"")[1].components(separatedBy: "\"")[0]
+            }
+        }
+        let base = u.deletingPathExtension().lastPathComponent, dir = u.deletingLastPathComponent().standardizedFileURL.path
+        if dir == papersDir.standardizedFileURL.path, Store.isPaperName(base) { return base }
+        if dir == dataDir.standardizedFileURL.path, base == "page" { return "page" }
+        return nil
+    }
+
+    // a free name in that folder: the name itself, or "name 2", "name 3"... (not one another paper is already down for)
+    static func unique(_ want: String, in dir: URL, keeping current: URL? = nil, index m: [String: [String: String]] = [:], for id: String? = nil) -> String {
+        let taken = Set(m.filter { $0.key != id }.compactMap { $0.value["file"]?.lowercased() })
+        var n = 1
+        while true {
+            let base = n == 1 ? want : "\(want) \(n)"
+            let u = dir.appendingPathComponent(base + ".html")
+            if u.standardizedFileURL.path.lowercased() == current?.standardizedFileURL.path.lowercased() { return base }
+            if !fm.fileExists(atPath: u.path), !taken.contains(rel(u).lowercased()) { return base }
+            n += 1
+        }
+    }
+    // a file from before IDs gets its ID written in, before anything renames it, so it's still known by any name
+    static func ensureId(_ u: URL, _ id: String) {
+        guard let t = try? String(contentsOf: u, encoding: .utf8), !t.contains("<meta name=\"paper\" content=") else { return }
+        let tag = "<meta name=\"paper\" content=\"\(id)\">"
+        let out = t.range(of: "<meta charset=\"utf-8\">") != nil ? t.replacingOccurrences(of: "<meta charset=\"utf-8\">", with: "<meta charset=\"utf-8\">\n" + tag) : tag + "\n" + t
+        try? out.write(to: u, atomically: true, encoding: .utf8)
+    }
+    static func move(_ from: URL, to: URL) throws {
+        try fm.moveItem(at: from, to: to)
+        let md = from.deletingPathExtension().appendingPathExtension("md"), toMd = to.deletingPathExtension().appendingPathExtension("md")
+        if fm.fileExists(atPath: md.path), !fm.fileExists(atPath: toMd.path) { try? fm.moveItem(at: md, to: toMd) }
+    }
+
+    // where a paper's file is now: where it was last, or found by the ID inside it (after a rename in Finder)
+    static func locate(_ id: String) -> URL {
+        var m = load()
+        if let f = m[id]?["file"] {
+            let u = dataDir.appendingPathComponent(f)
+            if fm.fileExists(atPath: u.path), Names.id(of: u) == id {
+                if u.deletingPathExtension().lastPathComponent == id { ensureId(u, id) }
+                return u
+            }
+        }
+        if var u = htmls(in: home(of: id)).first(where: { Names.id(of: $0) == id }) {
+            ensureId(u, id)
+            var rec = m[id] ?? [:]
+            if let old = rec["file"] { // renamed in Finder: its markdown copy follows
+                let oldMd = dataDir.appendingPathComponent(old).deletingPathExtension().appendingPathExtension("md")
+                let newMd = u.deletingPathExtension().appendingPathExtension("md")
+                if fm.fileExists(atPath: oldMd.path), !fm.fileExists(atPath: newMd.path) { try? fm.moveItem(at: oldMd, to: newMd) }
+            }
+            if id == "page", u.deletingPathExtension().lastPathComponent == "page" { // the first paper from before: page.html is now first-paper.html
+                let to = dataDir.appendingPathComponent(unique("first-paper", in: dataDir, index: m, for: id) + ".html")
+                if (try? move(u, to: to)) != nil { u = to; rec["auto"] = to.deletingPathExtension().lastPathComponent }
+            }
+            rec["file"] = rel(u)
+            m[id] = rec
+            save(m)
+            return u
+        }
+        // a paper with no file yet
+        let base = unique(id == "page" ? "first-paper" : "Untitled", in: home(of: id), index: m, for: id)
+        let u = home(of: id).appendingPathComponent(base + ".html")
+        m[id] = ["file": rel(u), "auto": base]
+        save(m)
+        return u
+    }
+
+    // a file name from a paper's first line: 30 characters at most, cut at a word, without characters a file can't have
+    static func fromFirstLine(_ html: String) -> String {
+        let line = Store.firstLine(html).split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty } ?? ""
+        var s = line.replacingOccurrences(of: "[/:\\\\]", with: " ", options: .regularExpression) // no characters a file name can't have
+            .replacingOccurrences(of: "[\\u0000-\\u001f]", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "^[.\\s]+", with: "", options: .regularExpression)
+        if s.count > 30 {
+            let cut = String(s.prefix(30)), next = s[s.index(s.startIndex, offsetBy: 30)]
+            // a word that ends right at 30 stays whole; otherwise the cut goes back to the last space
+            if !next.isWhitespace, let sp = cut.lastIndex(of: " "), cut.distance(from: cut.startIndex, to: sp) >= 12 { s = String(cut[..<sp]) } else { s = cut }
+        }
+        return s.trimmingCharacters(in: CharacterSet(charactersIn: " .,;:-\u{2013}\u{2014}"))
+    }
+
+    // when you leave a paper: named after its first line (the first paper, first-paper), unless you've named it yourself
+    static func settle(_ id: String) {
+        guard id == "page" || Store.isPaperName(id) else { return }
+        let u = locate(id)
+        guard fm.fileExists(atPath: u.path) else { return }
+        var m = load()
+        let base = u.deletingPathExtension().lastPathComponent
+        guard m[id]?["auto"] == base || base == id else { return } // renamed by you: your name stays
+        let want = id == "page" ? "first-paper" : fromFirstLine(Store.read(id))
+        guard !want.isEmpty, want != base else { return }
+        let name = unique(want, in: u.deletingLastPathComponent(), keeping: u, index: m, for: id)
+        guard name != base else { return }
+        let to = u.deletingLastPathComponent().appendingPathComponent(name + ".html")
+        guard (try? move(u, to: to)) != nil else { return }
+        m[id] = ["file": rel(to), "auto": name]
+        save(m)
     }
 }
 
@@ -335,7 +478,7 @@ final class PaperWindow: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         web.evaluateJavaScript("window.dispatchEvent(new Event('pagehide'))", completionHandler: nil)
         let name = paper
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { _ = Store.removeIfBlank(name) } // a paper closed without a word on it
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { if !Store.removeIfBlank(name) { Names.settle(name) } } // a paper closed without a word on it goes; one with words is named
         (NSApp.delegate as? AppDelegate)?.closed(self)
     }
 }
@@ -422,7 +565,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // let every page save anything still pending before quitting
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         for pw in windows { pw.web.evaluateJavaScript("window.dispatchEvent(new Event('pagehide'))", completionHandler: nil) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { sender.reply(toApplicationShouldTerminate: true) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            for pw in self.windows { Names.settle(pw.paper) } // each open paper named after its first line, as on closing
+            sender.reply(toApplicationShouldTerminate: true)
+        }
         return .terminateLater
     }
 
@@ -441,6 +587,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         case "settings": replyHandler(Store.write(Store.settingsURL, text, keepHistory: false), nil)
         case "list": replyHandler(Store.list(), nil)
         case "delete": replyHandler(Store.removeIfBlank(name), nil)
+        case "settle": Names.settle(name); replyHandler(true, nil)
         case "trash": replyHandler(Store.trash(name), nil)
         case "away": replyHandler(Store.putAway(name), nil)
         case "open":

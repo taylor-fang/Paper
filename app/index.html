@@ -467,6 +467,13 @@
       }).catch(() => {});
     },
     // only for a paper with nothing on it; Paper's own first page and files opened from Finder are never removed
+    // leaving a paper: on the Mac (the app or the local server) its file is named after its first line, unless
+    // you've renamed the file yourself; the website keeps papers in the browser, without file names
+    settle(name) {
+      if (name !== 'page' && !/^paper-[a-z0-9]+$/.test(name)) return;
+      if (native) return void ask({ op: 'settle', name });
+      if (onServer) fetch('/api/settle/' + name, { method: 'POST', headers: { 'x-paper': '1' }, keepalive: true }).catch(() => {});
+    },
     remove(name) {
       if (!/^paper-[a-z0-9]+$/.test(name)) return;
       try { for (const k of [name, 'notes-' + name, 'todo-' + name]) { localStorage.removeItem('paper.file.' + k); localStorage.removeItem('paper.mtime.' + k); } } catch {}
@@ -1250,7 +1257,10 @@ I hope Paper can help you write a bit more naturally.`;
     saveDoc.flush();
     saveNotes.flush(); // the paper you're leaving keeps its own notes and to-dos
     saveTodos.flush();
-    if (docName && docName !== name && docName.startsWith('paper-') && blankPage()) files.remove(docName); // a blank paper you've left
+    if (docName && docName !== name) { // the paper you've left: gone if blank, otherwise named after its first line
+      if (docName.startsWith('paper-') && blankPage()) files.remove(docName);
+      else files.settle(docName);
+    }
     docName = name;
     s.current = name;
     local.set('settings', JSON.stringify(s));
@@ -3253,6 +3263,7 @@ I hope Paper can help you write a bit more naturally.`;
     leaving = true;
     flushAll();
     if (docName?.startsWith('paper-') && blankPage()) files.remove(docName); // closing a paper you never wrote on
+    else if (docName) files.settle(docName);
   });
 
   /* ================= start ================= */

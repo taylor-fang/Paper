@@ -24,7 +24,7 @@ Click the **papers icon** to add a new paper (click plus icon) and see past pape
 Your work is automatically saved, but browsers can clear your cache. The Mac app is recommended.
 
 - <ins>On browser</ins>: add Paper to your [Dock](https://support.apple.com/guide/safari/add-to-dock-ibrw9e991864/mac) (on Mac) or [Home Screen](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios) (on iPhone)
-- <ins>On the Mac app</ins>: papers are saved as files in the `~/Paper` folder
+- <ins>On the Mac app</ins>: papers are saved as files in the `~/Paper` folder, each named after its first line (rename one in Finder and it keeps your name)
 
 ## Shortcuts
 
@@ -51,6 +51,7 @@ Your work is automatically saved, but browsers can clear your cache. The Mac app
 - **Calm cursor**: the cursor is translucent and breathes slowly instead of flashing
 - **Ta-da**: get a gold star for completing all your to-do tasks
 - **Footnotes**: footnotes (⌘⌥F) appear in the margins
+- **Search by root**: ⌘F finds a word in all its forms (“write” also finds writes, writer, and writing)
 - **No typos**: typos are not pointed out or corrected; take multiple passes through your writing instead (and coin new words!)
 - **Keep writing**: on the Mac app, papers deleted from tiny papers go to `~/Paper/removed` first, in case you ever want to come back to past writing
 
