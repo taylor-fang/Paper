@@ -8,15 +8,12 @@
 //   ~/Paper/days/*.html|.md  daily pages, when that option is on
 //   ~/Paper/.history/<date>/ each file as it was before that day's first change
 //
-// Export to Word uses macOS's built-in textutil.
-//
 // Run: node server.js [--port 4610] [--dir ~/Paper]
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFile } = require('child_process');
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf('--' + name);
@@ -251,29 +248,6 @@ const server = http.createServer(async (req, res) => {
       let days = [];
       try { days = fs.readdirSync(path.join(DIR, 'days')).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5)); } catch {}
       return send(res, 200, JSON.stringify(days.filter((d) => DAY.test(d)).sort()), 'application/json');
-    }
-
-    // export to word: macOS's textutil turns the page's HTML into a .docx
-    if (req.method === 'POST' && url.pathname === '/api/export/docx') {
-      if (req.headers['x-paper'] !== '1') return send(res, 403, 'forbidden');
-      const font = { inter: 'Inter', helvetica: 'Helvetica Neue', palatino: 'Palatino' }[url.searchParams.get('font')] || 'Times New Roman';
-      const body = await readBody(req);
-      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-'));
-      const html = path.join(tmp, 'page.html');
-      const docx = path.join(tmp, 'page.docx');
-      fs.writeFileSync(html, `<!doctype html><meta charset="utf-8"><style>body{font-family:"${font}";font-size:12px}p,ul,ol{margin:0 0 8px}</style>${body}`);
-      execFile('textutil', ['-convert', 'docx', '-format', 'html', html, '-output', docx], (err) => {
-        try {
-          if (err) throw err;
-          res.writeHead(200, { 'content-type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'cache-control': 'no-store' });
-          res.end(fs.readFileSync(docx));
-        } catch (e) {
-          send(res, 500, String(e.message || e));
-        } finally {
-          fs.rmSync(tmp, { recursive: true, force: true });
-        }
-      });
-      return;
     }
 
     // a markdown copy of each page, written next to it

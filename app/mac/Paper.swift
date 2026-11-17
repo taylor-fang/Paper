@@ -597,34 +597,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             pw?.window.title = text.isEmpty ? "Paper" : text // shown in the Window menu and Mission Control
             replyHandler(true, nil)
         case "export":
-            export(kind: body["kind"] as? String ?? "md", name: name, text: text, font: body["font"] as? String ?? "times", in: pw?.window ?? NSApp.keyWindow) { replyHandler($0, nil) }
+            export(kind: body["kind"] as? String ?? "md", name: name, data: Data(base64Encoded: body["data"] as? String ?? "") ?? Data(),
+                   in: pw?.window ?? NSApp.keyWindow) { replyHandler($0, nil) }
         default: replyHandler(nil, "unknown op")
         }
     }
 
-    // export: a normal Save dialog; word files are made with macOS's own textutil
-    func export(kind: String, name: String, text: String, font: String, in window: NSWindow?, done: @escaping (Bool) -> Void) {
-        guard let window else { return done(false) }
+    // export: a normal Save dialog for the file the page made (.md, or .docx in the page's font, size and spacing)
+    func export(kind: String, name: String, data: Data, in window: NSWindow?, done: @escaping (Bool) -> Void) {
+        guard let window, !data.isEmpty else { return done(false) }
         let ext = kind == "docx" ? "docx" : "md"
         let panel = NSSavePanel()
         panel.nameFieldStringValue = (name.isEmpty ? "Paper" : name) + "." + ext
         panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
         panel.beginSheetModal(for: window) { result in
             guard result == .OK, let dest = panel.url else { return done(false) }
-            try? FileManager.default.removeItem(at: dest) // the panel already asked about replacing
-            if ext == "md" { return done((try? text.write(to: dest, atomically: true, encoding: .utf8)) != nil) }
-
-            let family = ["inter": "Inter", "helvetica": "Helvetica Neue", "palatino": "Palatino"][font] ?? "Times New Roman"
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("paper-\(UUID().uuidString)")
-            try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-            defer { try? FileManager.default.removeItem(at: tmp) }
-            let html = tmp.appendingPathComponent("page.html")
-            let source = "<!doctype html><meta charset=\"utf-8\"><style>body{font-family:\"\(family)\";font-size:12px}p,ul,ol{margin:0 0 8px}</style>\(text)"
-            guard (try? source.write(to: html, atomically: true, encoding: .utf8)) != nil else { return done(false) }
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/usr/bin/textutil")
-            p.arguments = ["-convert", "docx", "-format", "html", html.path, "-output", dest.path]
-            do { try p.run(); p.waitUntilExit(); done(p.terminationStatus == 0) } catch { done(false) }
+            done((try? data.write(to: dest, options: .atomic)) != nil) // the panel already asked about replacing
         }
     }
 
