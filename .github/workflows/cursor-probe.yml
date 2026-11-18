@@ -1,0 +1,27 @@
+# Temporary: finds out which mouse cursor the Mac app really shows. Removed once the cursor is fixed.
+name: Cursor probe
+on:
+  push:
+    branches: [claude/dreamy-ramanujan-su8ydk]
+    paths: ['.github/probe/**', '.github/workflows/cursor-probe.yml', 'app/mac/**']
+jobs:
+  probe:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Paper.app
+        run: sh app/mac/build.sh
+      - name: Open Paper and check the cursor
+        run: |
+          mkdir -p shots
+          swiftc -framework AppKit .github/probe/cursor.swift -o probe
+          open "$HOME/Applications/Paper.app"; sleep 8
+          ./probe app || true
+          osascript -e 'tell application "Paper" to quit' || true; sleep 2
+          # the same page in Safari, for comparison
+          open -a Safari "file://$HOME/Applications/Paper.app/Contents/Resources/index.html"; sleep 8
+          osascript -e 'tell application "Safari" to set bounds of front window to {0, 25, 3000, 3000}' || true; sleep 2
+          ./probe safari || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: shots, path: shots }
