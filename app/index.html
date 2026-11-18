@@ -95,7 +95,10 @@
   }
   /* invisible floats that push the text past each page's bottom margin, the gap, and the next top margin */
   .shim { float: left; clear: left; width: 1px; margin-right: -1px; }
-  .shim.band { width: 100%; margin-right: 0; }
+  .shim.band { width: calc(100% + 1px); margin-right: 0; } /* a hair wider than the page, so nothing fits beside it in the gap between pages */
+  /* an empty line has no width, so a browser lets it sit beside the gap's float, in the margins and the gap itself;
+     a hair of width makes it a line like any other, pushed to the next page */
+  [data-paper="sheet"] #editor :is(p, li, h1, h2, h3, blockquote):has(> br:only-child)::before { content: ''; display: inline-block; width: 1px; }
   [data-paper="sheet"] #editor { min-height: 0; }
   @media (max-width: 700px) {
     [data-paper="sheet"] #page { padding: 32px 24px; margin-top: 16px; }
@@ -467,6 +470,13 @@
       }).catch(() => {});
     },
     // only for a paper with nothing on it; Paper's own first page and files opened from Finder are never removed
+    // leaving a paper: on the Mac (the app or the local server) its file is named after its first line, unless
+    // you've renamed the file yourself; the website keeps papers in the browser, without file names
+    settle(name) {
+      if (name !== 'page' && !/^paper-[a-z0-9]+$/.test(name)) return;
+      if (native) return void ask({ op: 'settle', name });
+      if (onServer) fetch('/api/settle/' + name, { method: 'POST', headers: { 'x-paper': '1' }, keepalive: true }).catch(() => {});
+    },
     remove(name) {
       if (!/^paper-[a-z0-9]+$/.test(name)) return;
       try { for (const k of [name, 'notes-' + name, 'todo-' + name]) { localStorage.removeItem('paper.file.' + k); localStorage.removeItem('paper.mtime.' + k); } } catch {}
@@ -496,7 +506,7 @@
       if (native) {
         const list = (await ask({ op: 'list' })) || [];
         // a markdown file opened from Finder: its words as the page shows them, without the marks or tags (<u>, *, [](), …)
-        for (const p of list) if (p.md != null) { p.first = previewOf(new DOMParser().parseFromString(fromMarkdown(p.md), 'text/html')); delete p.md; }
+        for (const p of list) if (p.md != null) { p.first = previewOf(new DOMParser().parseFromString(fromMarkdown(p.md, { lines: true }), 'text/html')); delete p.md; }
         return list;
       }
       if (onServer) {
@@ -569,7 +579,7 @@
   if (!CHOICES.paper.some(([v]) => v === s.paper)) s.paper = DEFAULTS.paper;
   for (const k of Object.keys(RANGE)) s[k] = snap(k, +s[k] || DEFAULTS[k]);
 
-  const EXPORTS = [['md', 'md'], ['docx', 'word']];
+  const EXPORTS = [['md', 'md'], ['docx', 'docx']];
   const ROWS = [['font', 'Font'], ['size', 'Size'], ['spacing', 'Spacing'], ['paper', 'Paper']].filter(([k]) => !(touch && k === 'paper')); // on a phone, always the open page
 
   // each setting: your handwritten label, a fine line, the value.
@@ -647,7 +657,7 @@
     });
   }
 
-  // export: your envelope; click it for md or word
+  // export: your envelope; click it for md or docx
   let exportOpen = false;
   function showExport(open) {
     exportOpen = open;
@@ -822,7 +832,7 @@
   }
   // plain text that's really markdown: bold, italic, links, headings, lists or footnotes in markdown's marks
   const looksLikeMarkdown = (t) => /(\*\*|__)\S[\s\S]*?\S?\1|(^|[\s(])[*_]\S[^*_\n]*?\S?[*_](?=[\s.,;:!?)]|$)|\[[^\]]+\]\([^)\s]+\)|\[\^[^\]]+\]|^#{1,6}\s|^\s*[-*+]\s+\S|^\s*\d+\.\s+\S|~~\S/m.test(t);
-  function fromMarkdown(md) {
+  function fromMarkdown(md, { lines: asLines = false } = {}) {
     const escHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     function inline(t) {
       const held = [];
@@ -841,12 +851,13 @@
     }
     const out = [];
     const defs = {};
-    md = md.replace(/\r\n?/g, '\n').replace(/^\[\^([^\]]+)\]:\s*(.*)$/gm, (_, id, t) => { defs[id] = t; return ''; });
-    const lines = md.split('\n');
+    md = md.replace(/\r\n?/g, '\n').replace(/^\[\^([^\]]+)\]:[ \t]*(.*)(\n|$)/gm, (_, id, t) => { defs[id] = t; return ''; });
+    const lines = asLines ? md.replace(/\s+$/, '').split('\n') : md.split('\n');
     let para = [], blanks = 0;
     const flush = () => { if (para.length) out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; };
     for (let k = 0; k < lines.length; k++) {
       const line = lines[k];
+      if (asLines && !line.trim()) { out.push('<p><br></p>'); continue; } // a markdown file of the page's own: an empty line
       if (line.trim()) {
         // more than one blank line before this: the extra ones are empty lines on the page
         if (out.length && blanks > 1 && !para.length) for (let e = 1; e < blanks; e++) out.push('<p><br></p>');
@@ -875,6 +886,7 @@
       const head = line.match(/^#{1,6}\s+(.*?)\s*#*$/);
       if (head) { flush(); out.push('<p><b>' + inline(head[1]) + '</b></p>'); continue; }
       para.push(line.replace(/^>\s?/, '').replace(/\s{2,}$/, ''));
+      if (asLines) flush(); // each line its own line, as on the page
     }
     flush();
     return out.join('');
@@ -926,18 +938,18 @@
       }
       return lines;
     }
-    // an empty line between paragraphs is written as one more blank line, so it comes back when read
-    const blocks = [];
-    let spare = 0;
-    const push = (t) => { blocks.push('\n'.repeat(spare) + t); spare = 0; };
+    // the file looks like the page: a line for each line, a blank line for each empty one (read back with
+    // fromMarkdown(…, { lines: true })). Markdown viewers join lines that follow each other, a tradeoff for a file
+    // that reads as the page does
+    const lines = [];
     for (const b of rootEl.children) {
-      if (b.nodeName === 'UL' || b.nodeName === 'OL') { push(list(b, '', []).join('\n')); continue; }
-      const text = inline(b).trim().replace(/\n/g, '  \n');
-      if (text) push(text.replace(/^(#|>|[-+] )/, '\\$1').replace(/^(\d+)\. /, '$1\\. '));
-      else if (blocks.length) spare++;
+      if (b.nodeName === 'UL' || b.nodeName === 'OL') { lines.push(...list(b, '', [])); continue; }
+      const text = inline(b).trim();
+      lines.push(text.replace(/^(#|>|[-+] )/, '\\$1').replace(/^(\d+)\. /, '$1\\. '));
     }
-    if (notesOut.length) blocks.push(notesOut.map((t, k) => `[^${k + 1}]: ${t}`).join('\n'));
-    return blocks.join('\n\n') + '\n';
+    while (lines.length && !lines[lines.length - 1]) lines.pop(); // no empty lines at the end
+    if (notesOut.length) lines.push('', ...notesOut.map((t, k) => `[^${k + 1}]: ${t}`));
+    return lines.join('\n') + '\n';
   }
 
   function download(blob, name) {
@@ -948,24 +960,133 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
+  // ---------- .docx ----------
+  // the page as a Word file, made right here so the website, the local server and the Mac app all give the same
+  // file: in the font, size and line spacing the page has right now, no space added between lines, and without
+  // the empty lines at the end (they'd only make blank pages)
+  function toDocx(rootEl) {
+    const FONTS = { inter: 'Inter', helvetica: 'Helvetica Neue', times: 'Times New Roman', palatino: 'Palatino' };
+    const font = FONTS[s.font] || 'Times New Roman';
+    const x = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const links = [], notes = [], lists = [];
+    function runs(node, st = {}) {
+      let out = '';
+      for (const n of node.childNodes) {
+        if (n.nodeType === 3) {
+          const t = n.data.replace(/​/g, '').replace(/ /g, ' ');
+          if (!t) continue;
+          const pr = (st.b ? '<w:b/>' : '') + (st.i ? '<w:i/>' : '') + (st.s ? '<w:strike/>' : '') + (st.a ? '<w:color w:val="0563C1"/>' : '') + (st.u || st.a ? '<w:u w:val="single"/>' : '');
+          out += `<w:r>${pr ? `<w:rPr>${pr}</w:rPr>` : ''}<w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
+          continue;
+        }
+        if (n.nodeType !== 1) continue;
+        const tag = n.nodeName;
+        if (tag === 'SUP' && n.classList.contains('fn')) {
+          const box = document.createElement('div');
+          box.innerHTML = noteHtml(n.dataset.note || '');
+          notes.push(runs(box));
+          out += `<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteReference w:id="${notes.length}"/></w:r>`;
+        } else if (tag === 'BR') {
+          // a break that ends its line is only what keeps an empty line open in the browser, not a line of its own
+          let after = n.nextSibling;
+          while (after && after.nodeType === 3 && !after.data.replace(/[\s\u200b]/g, '')) after = after.nextSibling;
+          if (after || !/^(P|LI|DIV|H[1-6]|BLOCKQUOTE)$/.test(node.nodeName)) out += '<w:r><w:br/></w:r>';
+        }
+        else if (tag === 'UL' || tag === 'OL') continue; // lists inside a list item come after it
+        else if (tag === 'A' && n.getAttribute('href')) {
+          links.push(n.getAttribute('href'));
+          out += `<w:hyperlink r:id="link${links.length}">${runs(n, { ...st, a: true })}</w:hyperlink>`;
+        } else out += runs(n, { ...st, b: st.b || tag === 'B' || tag === 'STRONG', i: st.i || tag === 'I' || tag === 'EM', u: st.u || tag === 'U', s: st.s || tag === 'S' || tag === 'STRIKE' || tag === 'DEL' });
+      }
+      return out;
+    }
+    const para = (inner, num) => `<w:p>${num ? `<w:pPr><w:numPr><w:ilvl w:val="${num.level}"/><w:numId w:val="${num.id}"/></w:numPr></w:pPr>` : ''}${inner}</w:p>`;
+    function list(el, level, id, out) {
+      for (const c of el.children) {
+        if (c.nodeName === 'LI') {
+          out.push(para(runs(c), { level, id }));
+          for (const sub of c.children) if (sub.nodeName === 'UL' || sub.nodeName === 'OL') list(sub, Math.min(8, level + 1), id, out);
+        } else if (c.nodeName === 'UL' || c.nodeName === 'OL') list(c, Math.min(8, level + 1), id, out);
+      }
+    }
+    const blocks = [...rootEl.children];
+    const empty = (b) => !b.textContent.replace(/[\s​]/g, '') && !b.querySelector('sup.fn');
+    while (blocks.length && empty(blocks[blocks.length - 1])) blocks.pop();
+    const body = [];
+    for (const b of blocks) {
+      if (b.nodeName === 'UL' || b.nodeName === 'OL') { lists.push(b.nodeName); list(b, 0, lists.length, body); }
+      else body.push(para(runs(b)));
+    }
+    if (!body.length) body.push('<w:p/>');
+
+    const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+    const head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+    const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    // single, 1.15, 1.5, 2…: Word's "multiple" spacing, in 240ths of a line
+    const look = `<w:rPr><w:rFonts w:ascii="${x(font)}" w:hAnsi="${x(font)}" w:cs="${x(font)}" w:eastAsia="${x(font)}"/><w:sz w:val="${Math.round(s.size * 2)}"/><w:szCs w:val="${Math.round(s.size * 2)}"/></w:rPr>`;
+    const lineSp = `<w:spacing w:before="0" w:after="0" w:line="${Math.round(s.spacing * 240)}" w:lineRule="auto"/>`;
+    const level = (k, kind) => {
+      const bullet = kind === 'UL';
+      return `<w:lvl w:ilvl="${k}"><w:start w:val="1"/><w:numFmt w:val="${bullet ? 'bullet' : ['decimal', 'lowerLetter', 'lowerRoman'][k % 3]}"/><w:lvlText w:val="${bullet ? ['•', '◦', '▪'][k % 3] : `%${k + 1}.`}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="${720 * (k + 1)}" w:hanging="360"/></w:pPr></w:lvl>`;
+    };
+    const files = {
+      '[Content_Types].xml': head + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+        + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+        + '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>'
+        + '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/></Types>',
+      '_rels/.rels': head + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="word/document.xml"/></Relationships>`,
+      'word/_rels/document.xml.rels': head + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + `<Relationship Id="styles" Type="${REL}/styles" Target="styles.xml"/><Relationship Id="numbering" Type="${REL}/numbering" Target="numbering.xml"/><Relationship Id="footnotes" Type="${REL}/footnotes" Target="footnotes.xml"/>`
+        + links.map((h, k) => `<Relationship Id="link${k + 1}" Type="${REL}/hyperlink" Target="${x(h)}" TargetMode="External"/>`).join('') + '</Relationships>',
+      'word/styles.xml': head + `<w:styles ${NS}><w:docDefaults><w:rPrDefault>${look}</w:rPrDefault><w:pPrDefault><w:pPr>${lineSp}</w:pPr></w:pPrDefault></w:docDefaults>`
+        + `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr>${lineSp}</w:pPr></w:style>`
+        + `<w:style w:type="paragraph" w:styleId="FootnoteText"><w:name w:val="footnote text"/><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="${Math.round(s.size * 1.6)}"/></w:rPr></w:style></w:styles>`,
+      'word/numbering.xml': head + `<w:numbering ${NS}>`
+        + lists.map((kind, k) => `<w:abstractNum w:abstractNumId="${k + 1}">${Array.from({ length: 9 }, (_, j) => level(j, kind)).join('')}</w:abstractNum>`).join('')
+        + lists.map((_, k) => `<w:num w:numId="${k + 1}"><w:abstractNumId w:val="${k + 1}"/></w:num>`).join('') + '</w:numbering>',
+      'word/footnotes.xml': head + `<w:footnotes ${NS}><w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>`
+        + notes.map((r, k) => `<w:footnote w:id="${k + 1}"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>${r}</w:p></w:footnote>`).join('') + '</w:footnotes>',
+      'word/document.xml': head + `<w:document ${NS}><w:body>${body.join('')}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`,
+    };
+    return zip(files);
+  }
+  // a plain zip (stored, not compressed): all a .docx needs
+  function zip(files) {
+    const enc = new TextEncoder();
+    const crcTable = zip.t ||= Array.from({ length: 256 }, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+    const crc = (b) => { let c = -1; for (const v of b) c = crcTable[(c ^ v) & 255] ^ (c >>> 8); return (c ^ -1) >>> 0; };
+    const parts = [], central = [];
+    let offset = 0;
+    for (const [name, text] of Object.entries(files)) {
+      const n = enc.encode(name), data = enc.encode(text), c = crc(data);
+      const local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(8, 0, true);
+      local.setUint32(14, c, true); local.setUint32(18, data.length, true); local.setUint32(22, data.length, true); local.setUint16(26, n.length, true);
+      const dir = new DataView(new ArrayBuffer(46));
+      dir.setUint32(0, 0x02014b50, true); dir.setUint16(4, 20, true); dir.setUint16(6, 20, true);
+      dir.setUint32(16, c, true); dir.setUint32(20, data.length, true); dir.setUint32(24, data.length, true); dir.setUint16(28, n.length, true); dir.setUint32(42, offset, true);
+      parts.push(local, n, data);
+      central.push(dir, n);
+      offset += 30 + n.length + data.length;
+    }
+    const size = central.reduce((t, p) => t + p.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, central.length / 2, true); end.setUint16(10, central.length / 2, true);
+    end.setUint32(12, size, true); end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, end], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  }
+
   async function exportAs(kind) {
     saveDoc.flush();
     const name = (document.title || 'Paper').replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
-    // in the app: a normal Save dialog, and the app makes the file
-    if (native) return void ask({ op: 'export', kind, name, font: s.font, text: kind === 'md' ? toMarkdown(ed) : ed.innerHTML });
-    if (kind === 'md') return download(new Blob([toMarkdown(ed)], { type: 'text/markdown;charset=utf-8' }), name + '.md');
-    // word: the server turns the page into a .docx with the Mac's own converter. The website has no server, so it
-    // saves the page as a .doc that Word opens with its formatting
-    if (!onServer) return download(new Blob(['<html><head><meta charset="utf-8"></head><body style="font-family: ' + getComputedStyle(ed).fontFamily.replace(/"/g, "'") + '">' + ed.innerHTML + '</body></html>'], { type: 'application/msword' }), name + '.doc');
-    try {
-      const r = await fetch('/api/export/docx?font=' + s.font, {
-        method: 'POST',
-        headers: { 'x-paper': '1', 'content-type': 'text/plain;charset=utf-8' },
-        body: ed.innerHTML,
-      });
-      if (!r.ok) throw new Error(await r.text());
-      download(await r.blob(), name + '.docx');
-    } catch {}
+    const file = kind === 'md' ? new Blob([toMarkdown(ed)], { type: 'text/markdown;charset=utf-8' }) : toDocx(ed);
+    if (!native) return download(file, name + '.' + kind);
+    // in the app: a normal Save dialog, and the app writes the file
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let bin = '';
+    for (let k = 0; k < bytes.length; k += 0x8000) bin += String.fromCharCode(...bytes.subarray(k, k + 0x8000));
+    ask({ op: 'export', kind, name, data: btoa(bin) });
   }
 
   // words as each language has them: Chinese and Japanese don't put spaces between words
@@ -1142,7 +1263,7 @@
     const item = (label, fn) => { const b = document.createElement('div'); b.textContent = label; b.onclick = async (ev) => { ev.stopPropagation(); closeMenu(); await fn(); }; menu.append(b); };
     item('Duplicate', async () => {
       let body = await files.get(p.name);
-      if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15));
+      if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15), { lines: true });
       if (p.name === docName) { saveDoc.flush(); body = ed.innerHTML; }
       const name = newName();
       files.put(name, body || '<p><br></p>');
@@ -1250,13 +1371,16 @@ I hope Paper can help you write a bit more naturally.`;
     saveDoc.flush();
     saveNotes.flush(); // the paper you're leaving keeps its own notes and to-dos
     saveTodos.flush();
-    if (docName && docName !== name && docName.startsWith('paper-') && blankPage()) files.remove(docName); // a blank paper you've left
+    if (docName && docName !== name) { // the paper you've left: gone if blank, otherwise named after its first line
+      if (docName.startsWith('paper-') && blankPage()) files.remove(docName);
+      else files.settle(docName);
+    }
     docName = name;
     s.current = name;
     local.set('settings', JSON.stringify(s));
     if (native) ask({ op: 'open', name });
     let body = await files.get(name);
-    if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15)); // a markdown file opened from Finder
+    if (body.startsWith('<!--paper:md-->')) body = fromMarkdown(body.slice(15), { lines: true }); // a markdown file opened from Finder
     const firstVisit = name === 'page' && !body.trim() && !s.welcomed;
     if (!s.welcomed) { s.welcomed = true; local.set('settings', JSON.stringify(s)); if (native) ask({ op: 'settings', text: JSON.stringify(s) }); }
     // a phone: "(desktop recommended)", in italics, beside How to use Paper, "For more ease..." a paragraph of its own,
@@ -1974,6 +2098,10 @@ I hope Paper can help you write a bit more naturally.`;
         const lh = parseFloat(cs.lineHeight) || fs * 1.4;
         left = box.left + parseFloat(bs.borderLeftWidth) + parseFloat(bs.paddingLeft); // where the words start, not the edge of the box (a list item's is a little in from its bullet)
         baseline = box.top + (lh - (m.boxAscent + m.boxDescent)) / 2 + m.boxAscent;
+        // its line break shows where the line really is: on a leaf, a line just past a page's end sits on the next
+        // page, below where its paragraph's box begins
+        const br = [...block.childNodes].find((x) => x.nodeName === 'BR');
+        if (br) { const t = document.createRange(); t.selectNode(br); const brr = t.getBoundingClientRect(); if (brr.height) baseline = brr.bottom - m.boxDescent; }
       }
       // as tall as the letters themselves, sitting a little up from the tails so it reads level with the word
       const letters = m.ascender + m.descender;
@@ -2360,6 +2488,45 @@ I hope Paper can help you write a bit more naturally.`;
     caretJumped = true;
     drawCaret();
   });
+  // dragging a selection to the top or bottom of the window scrolls the page, faster the closer you are to the
+  // edge (or past it) and the longer you hold there, as Word does; the browser's own scrolling there is slow
+  {
+    const EDGE = 64;
+    let drag = null;
+    ed.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || touch) return;
+      drag = { x: e.clientX, y: e.clientY, since: 0 };
+    });
+    addEventListener('mousemove', (e) => {
+      if (!drag) return;
+      if (!(e.buttons & 1)) { drag = null; return; }
+      drag.x = e.clientX; drag.y = e.clientY;
+      if (!drag.frame) drag.frame = requestAnimationFrame(step);
+    });
+    addEventListener('mouseup', () => { if (drag?.frame) cancelAnimationFrame(drag.frame); drag = null; });
+    addEventListener('blur', () => { if (drag?.frame) cancelAnimationFrame(drag.frame); drag = null; });
+    function step(now) {
+      drag.frame = 0;
+      const h = innerHeight;
+      // how deep into the edge band the pointer is: 0 at its inner side, 1 at the window's edge, more past it
+      const depth = drag.y > h - EDGE ? (drag.y - (h - EDGE)) / EDGE : drag.y < EDGE ? (EDGE - drag.y) / EDGE : 0;
+      if (depth <= 0 || getSelection().isCollapsed) { drag.since = 0; return; }
+      drag.since ||= now;
+      const held = Math.min(1.5, (now - drag.since) / 1000);
+      const speed = Math.min(60, (2 + 13 * Math.min(depth, 2) ** 2) * (1 + held / 1.5));
+      const before = scrollY;
+      scrollBy(0, drag.y > h / 2 ? speed : -speed);
+      if (scrollY !== before) {
+        // the selection follows to whatever is now under the pointer (held inside the column and the window)
+        const col = ed.getBoundingClientRect();
+        const x = Math.max(col.left + 1, Math.min(col.right - 1, drag.x));
+        const y = Math.max(1, Math.min(h - 2, drag.y));
+        const r = caretFromPoint(x, y);
+        if (r && ed.contains(r.startContainer)) getSelection().extend(r.startContainer, r.startOffset);
+      }
+      drag.frame = requestAnimationFrame(step);
+    }
+  }
   function linesDownTo(y) {
     let added = 0;
     // one line at a time, since on a leaf a line can jump to the next page
@@ -3253,6 +3420,7 @@ I hope Paper can help you write a bit more naturally.`;
     leaving = true;
     flushAll();
     if (docName?.startsWith('paper-') && blankPage()) files.remove(docName); // closing a paper you never wrote on
+    else if (docName) files.settle(docName);
   });
 
   /* ================= start ================= */
