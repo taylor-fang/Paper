@@ -1314,7 +1314,7 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['w2m4md', 'x2dg6o', '1i07tsx', '1yyjqc', 'z4epez', '7bp5gg', '1h23hai', '1tppbt5', '17l0jgy', '1cj85fx', '1uytn6m', '19mw361', '1td4e5y', 'jejuod', 'h58pzi', 'zae0p1', '1hinzpy', 'biodlt', '12daodf', '1lf2lv0', 'yyklw3', 'hpntf1', '1v5non2', 'ajshjp', '12fexs1', '16vruh3', '1tnro9a', 'yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46', '1oo68yo', 'kymhu4'];
+  const OLD_STARTERS = ['1xpg408', 'eb9q29', '1j6e8r4', 'w2m4md', 'x2dg6o', '1i07tsx', '1yyjqc', 'z4epez', '7bp5gg', '1h23hai', '1tppbt5', '17l0jgy', '1cj85fx', '1uytn6m', '19mw361', '1td4e5y', 'jejuod', 'h58pzi', 'zae0p1', '1hinzpy', 'biodlt', '12daodf', '1lf2lv0', 'yyklw3', 'hpntf1', '1v5non2', 'ajshjp', '12fexs1', '16vruh3', '1tnro9a', 'yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46', '1oo68yo', 'kymhu4'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
@@ -1337,10 +1337,7 @@ I created Paper because I wanted a more simple and clean writing space. To focus
 - *Files.* Export .md or .docx, and see all your writing on tiny papers (click + for a new paper).
 
 
-You can use all the regular keyboard shortcuts. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
-
-
-Begin writing anytime...`;
+You can use all the regular keyboard shortcuts. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper). Begin writing anytime...`;
 
   // nothing written: no words and no list items
   const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn') && !notesText().trim() && !todos.some((t) => t.t.trim());
