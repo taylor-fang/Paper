@@ -1314,33 +1314,33 @@
   // it's ordinary text, delete it and it's gone
   const REPO = 'https://github.com/taylor-fang/Paper';
   // earlier About Paper texts (as the page's words, spaces collapsed), so an untouched one can be brought up to date
-  const OLD_STARTERS = ['yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46', '1oo68yo', 'kymhu4'];
+  const OLD_STARTERS = ['12fexs1', '16vruh3', '1tnro9a', 'yiqre4', 'urgog5', '12xuflt', '15ekicp', '18nsntp', 'up5io4', 'xqsd4w', 'qf65qi', '1bgd35b', '1ejsont', 'wt3c8k', '18krmts', '1xiqkli', 'pn78ve', '1fmuzw0', 'ync3m2', '1yfjh46', '1oo68yo', 'kymhu4'];
   const textHash = (t) => { let x = 2166136261; for (const c of t) x = Math.imul(x ^ c.codePointAt(0), 16777619); return (x >>> 0).toString(36); };
   const STARTER = `<u>*About Paper*</u>
 
 
-This is Paper. A surface for writers.
+Hello Paper. A surface for writing.
 
 
-I created Paper to be a simple writing space. A place for single-mindedness, akin to a typewriter or physical journal. A space for more ease, focus, and flow in writing.
+I created Paper because I wanted a more simple and clean writing space. A kind of journal to focus on words rather than formatting. I hope it can help you find deeper attention and flow in writing.
 
 
 <u>*How to use Paper*</u>
 
 
-**Write anywhere. Tap on the right to see the sidebar.**
+**Write anywhere. Tap on the right to see a sidebar:**
 
 
 - *Scratchpad.* Jot down notes or questions.
 - *Ta-da.* Outline and divide writing into chunks (and get a gold star!)
 - *Fresh eyes.* Curated palette of 4 fonts with range for size & spacing.
-- *Files.* Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper).
+- *Files.* Export .md or .docx, and see all your writing on tiny papers (click + for a new paper).
 
 
 You can use all the regular keyboard shortcuts. For full details and the open-source repo, see [here](https://github.com/taylor-fang/Paper).
 
 
-I hope Paper can help you write a bit more naturally.`;
+I hope Paper can help you write a bit (more)!`;
 
   // nothing written: no words and no list items
   const blankPage = () => !ed.textContent.replace(/[\s\u200b]/g, '') && !ed.querySelector('li, sup.fn') && !notesText().trim() && !todos.some((t) => t.t.trim());
@@ -1386,17 +1386,13 @@ I hope Paper can help you write a bit more naturally.`;
     // a phone: "(desktop recommended)", in italics, beside How to use Paper, "For more ease..." a paragraph of its own,
     // no keyboard shortcuts, the repo called the GitHub repo, and otherwise the phone's words as they were
     const starter = touch ? STARTER
-      .replace('This is Paper. A surface for writers.', 'Paper is a surface for writers.')
-      .replace(' A space for more ease,', '\n\n\nA space for more ease,')
-      .replace('Export .md or .docx, and see all your writing on tiny papers (click plus for a new paper).', 'Export into .md or .docx, and see all your writing on tiny papers.')
+      .replace('Export .md or .docx, and see all your writing on tiny papers (click + for a new paper).', 'Export into .md or .docx, and see all your writing on tiny papers.')
       .replace('<u>*How to use Paper*</u>', '<u>*How to use Paper*</u> *(desktop recommended)*')
       .replace(/You can use all the regular keyboard shortcuts[^.]*\. /, '')
       .replace('the open-source repo', 'the open-source GitHub repo')
       : native ? STARTER // the Mac app: shorter, plainer words
-        .replace('This is Paper. A surface for writers.', 'A surface for writers.')
         .replace('*Ta-da.*', '*To-do.*')
         .replace('Curated palette of 4 fonts with range for size & spacing.', 'Four fonts, range for size and spacing.')
-        .replace('(click plus for a new paper)', '(click + for a new paper)')
         .replace('see [here](', 'see [GitHub](')
       : STARTER;
     ed.innerHTML = body.trim() || (firstVisit ? fromMarkdown(starter) : '<p><br></p>');
@@ -1512,6 +1508,21 @@ I hope Paper can help you write a bit more naturally.`;
       if (rect.bottom > innerHeight - lh * 3) scrollBy({ top: rect.bottom - (innerHeight - lh * 7), behavior: 'smooth' });
     });
   }
+
+  // two hyphens become an em dash as soon as the second is typed, as on a Mac; ⌘Z gives the two hyphens back
+  document.addEventListener('input', (e) => {
+    if (e.inputType !== 'insertText' || e.data !== '-') return;
+    const field = e.target;
+    if (!typingIn(field) || isBox(field)) return;
+    const sel = getSelection();
+    if (!sel.rangeCount || !sel.isCollapsed) return;
+    const { startContainer: n, startOffset: o } = sel.getRangeAt(0);
+    if (n.nodeType !== 3 || o < 2 || n.data.slice(o - 2, o) !== '--' || n.data[o - 3] === '-') return; // a third hyphen stays a hyphen
+    const dash = document.createRange();
+    dash.setStart(n, o - 2); dash.setEnd(n, o);
+    sel.removeAllRanges(); sel.addRange(dash);
+    document.execCommand('insertText', false, '\u2014');
+  }, true);
 
   // quotes and apostrophes curl as they're typed: let’s gets its ’ straight away, not once the s comes
   document.addEventListener('beforeinput', (e) => {
